@@ -2,5 +2,5 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "pnpm build",
   "framework": "nextjs",
-  "regions": ["bom1"]git add vercel.json
+  "regions": ["bom1"]
 }
