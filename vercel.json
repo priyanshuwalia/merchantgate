@@ -2,12 +2,5 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "pnpm build",
   "framework": "nextjs",
-  "regions": ["bom1"],
-  "env": {
-    "DATABASE_URL": "@database-url",
-    "RAZORPAY_KEY_ID": "@razorpay-key-id",
-    "RAZORPAY_KEY_SECRET": "@razorpay-key-secret",
-    "RAZORPAY_WEBHOOK_SECRET": "@razorpay-webhook-secret",
-    "AGENT_AUTH_MODE": "@agent-auth-mode"
-  }
+  "regions": ["bom1"]git add vercel.json
 }
