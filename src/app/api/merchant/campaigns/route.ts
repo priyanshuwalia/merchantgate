@@ -7,6 +7,7 @@ import {
   deleteCampaign,
   endCampaign,
   getCampaignPerformance,
+  isCampaignLive,
   listCampaigns,
   pauseCampaign,
   resumeCampaign,
@@ -20,7 +21,6 @@ export const dynamic = "force-dynamic";
 const CAMPAIGN_TYPES: CampaignType[] = [
   "CATEGORY_DISCOUNT",
   "FLAT_DISCOUNT",
-  "BUNDLE_DISCOUNT",
   "FLASH_SALE",
   "TIERED_DISCOUNT",
   "AGENT_TARGETED",
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
       active: campaigns.filter((c) => c.status === "active").length,
       campaigns: campaigns.map((c) => ({
         ...c,
-        liveNow: c.status === "active",
+        liveNow: isCampaignLive(c),
       })),
     });
   } catch (error) {

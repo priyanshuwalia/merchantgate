@@ -36,6 +36,7 @@ export interface UpsellCatalogItem {
   category: string;
   unitAmountMinor: number;
   stockQuantity: number;
+  returnable?: boolean;
   attributes?: Record<string, unknown>;
 }
 
@@ -276,8 +277,9 @@ export function generateUpsellOffers(options: {
   catalog: UpsellCatalogItem[];
   rules: UpsellRuleSet;
   marketBaskets?: MarketBasketRecord[];
+  requiresRefundable?: boolean;
 }): UpsellGenerationResult {
-  const { cart, catalog, rules, marketBaskets } = options;
+  const { cart, catalog, rules, marketBaskets, requiresRefundable } = options;
   const cartSubtotalMinor = cart.reduce(
     (sum, i) => sum + i.unitAmountMinor * i.quantity,
     0,
@@ -303,7 +305,11 @@ export function generateUpsellOffers(options: {
       !cartVariantIds.has(p.variantId) &&
       p.stockQuantity > 0 &&
       rules.upsellCategories.includes(p.category) &&
-      p.unitAmountMinor > 0,
+      p.unitAmountMinor > 0 &&
+      // A buyer whose mandate requires refundable items must never be offered
+      // a non-returnable product — accepting it would build a cart the policy
+      // would hard-DENY (NON_REFUNDABLE_ITEM_DISALLOWED).
+      (!requiresRefundable || p.returnable !== false),
   );
 
   const offerContext = {
@@ -516,6 +522,7 @@ export function resolveUpsellOffer(options: {
   rules: UpsellRuleSet;
   marketBaskets?: MarketBasketRecord[];
   upsellOfferId: string;
+  requiresRefundable?: boolean;
 }): UpsellOfferItem[] | null {
   const { offers } = generateUpsellOffers(options);
   const match = offers.find((o) => o.offerId === options.upsellOfferId);

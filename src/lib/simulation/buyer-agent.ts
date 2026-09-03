@@ -168,7 +168,12 @@ export class SimulatedBuyerAgent {
     const res = await fetch(`${baseUrl}/v1/agent/upsell`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ agentId: this.agentId, items }),
+      body: JSON.stringify({
+        agentId: this.agentId,
+        items,
+        requiresRefundable:
+          this.intentMandate.constraints?.requiresRefundability ?? false,
+      }),
     });
 
     return await res.json();

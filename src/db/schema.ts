@@ -31,6 +31,68 @@ export const merchants = pgTable("merchants", {
   updated_at: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// 1b. Campaigns (Merchant Promotions)
+
+export const campaigns = pgTable(
+  "campaigns",
+  {
+    id: text("id").primaryKey().default(sql`'cmp_' || gen_random_uuid()`),
+
+    merchant_id: text("merchant_id")
+      .notNull()
+      .references(() => merchants.id, { onDelete: "cascade" }),
+
+    name: text("name").notNull(),
+
+    description: text("description"),
+
+    type: text("type").notNull(), // CATEGORY_DISCOUNT | FLAT_DISCOUNT | BUNDLE_DISCOUNT | FLASH_SALE | TIERED_DISCOUNT | AGENT_TARGETED
+
+    category: text("category"),
+
+    variant_ids: jsonb("variant_ids").default([]), // string[]
+
+    discount_bps: integer("discount_bps").notNull().default(0),
+
+    min_order_minor: integer("min_order_minor"),
+
+    starts_at: timestamp("starts_at").notNull(),
+
+    ends_at: timestamp("ends_at").notNull(),
+
+    status: text("status").notNull().default("active"), // draft | active | paused | ended
+
+    target_audience: text("target_audience"),
+
+    target_agents: jsonb("target_agents").default([]), // string[]
+
+    budget_minor: integer("budget_minor"),
+
+    spent_minor: integer("spent_minor").notNull().default(0),
+
+    priority: integer("priority").notNull().default(0),
+
+    flash_price_minor: integer("flash_price_minor"),
+
+    tiers: jsonb("tiers").default([]), // CampaignTier[]
+
+    stackable: boolean("stackable").notNull().default(false),
+
+    ab_group: text("ab_group"), // "A" | "B"
+
+    schedule_days: jsonb("schedule_days").default([]), // number[]
+
+    created_at: timestamp("created_at").notNull().defaultNow(),
+
+    updated_at: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_campaigns_merchant").on(table.merchant_id),
+    index("idx_campaigns_status").on(table.status),
+    index("idx_campaigns_type").on(table.type),
+  ],
+);
+
 // 2. Products
 
 export const products = pgTable(

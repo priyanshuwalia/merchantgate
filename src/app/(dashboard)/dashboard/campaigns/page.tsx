@@ -12,6 +12,7 @@ import {
   Pencil,
   Play,
   Plus,
+  RefreshCw,
   Square,
   Target,
   Trash2,
@@ -88,7 +89,7 @@ interface CampaignPerformance {
 
 const TYPE_META: Record<
   string,
-  { label: string; hint: string; icon: typeof Flame; color: string }
+  { label: string; hint: string; icon: typeof Flame; color: string; disabled?: boolean }
 > = {
   CATEGORY_DISCOUNT: {
     label: "Category Discount",
@@ -104,9 +105,10 @@ const TYPE_META: Record<
   },
   BUNDLE_DISCOUNT: {
     label: "Bundle Discount",
-    hint: "Multi-item basket",
+    hint: "Managed by upsell engine — not a standalone campaign",
     icon: Copy,
-    color: "text-[#7c5cff]",
+    color: "text-[#94a3b8]",
+    disabled: true,
   },
   FLASH_SALE: {
     label: "Flash Sale",
@@ -138,7 +140,6 @@ const STATUS_COLOR: Record<CampaignStatus, string> = {
 const CAMPAIGN_TYPES = [
   "CATEGORY_DISCOUNT",
   "FLAT_DISCOUNT",
-  "BUNDLE_DISCOUNT",
   "FLASH_SALE",
   "TIERED_DISCOUNT",
   "AGENT_TARGETED",
@@ -211,7 +212,7 @@ export default function CampaignsPage() {
 
   useEffect(() => {
     load();
-    const t = setInterval(load, 30000);
+    const t = setInterval(load, 10000);
     return () => clearInterval(t);
   }, [load]);
 
@@ -328,6 +329,7 @@ export default function CampaignsPage() {
     if (editTarget.targetAgents) patch.targetAgents = editTarget.targetAgents;
     if (editTarget.discountBps !== undefined)
       patch.discountBps = editTarget.discountBps;
+    if (editTarget.tiers !== undefined) patch.tiers = editTarget.tiers;
     const ok = await call("PATCH", patch);
     if (ok) setEditTarget(null);
   };
@@ -344,7 +346,6 @@ export default function CampaignsPage() {
       | "name"
       | "spentMinor"
       | "liveNow"
-      | "tiers"
       | "scheduleDays"
     >,
   >(
@@ -428,6 +429,16 @@ export default function CampaignsPage() {
               Budget-capped, priority-orchestrated promotions
             </p>
           </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1"
+            onClick={() => load()}
+            disabled={loading}
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
           <Button
             size="sm"
             className="gap-1"
@@ -1216,6 +1227,37 @@ export default function CampaignsPage() {
                   />
                 </div>
               </div>
+              {editTarget.type === "TIERED_DISCOUNT" && (
+                <div>
+                  <label
+                    htmlFor="edit-campaign-tiers"
+                    className="mb-1 block font-medium"
+                  >
+                    Tiered discounts (minOrder:bps;minOrder:bps)
+                  </label>
+                  <Input
+                    id="edit-campaign-tiers"
+                    value={
+                      editTarget.tiers
+                        ?.map((t) => `${t.minOrderMinor}:${t.discountBps}`)
+                        .join(";") || ""
+                    }
+                    onChange={(e) => {
+                      const tiers = e.target.value
+                        .split(";")
+                        .map((t) => t.trim())
+                        .filter(Boolean)
+                        .map((t) => {
+                          const [min, bps] = t.split(":").map((x) => Number(x.trim()));
+                          return { minOrderMinor: min || 0, discountBps: bps || 0 };
+                        })
+                        .filter((t) => t.minOrderMinor > 0);
+                      setEditField("tiers", tiers.length > 0 ? tiers : []);
+                    }}
+                    placeholder="50000:500;100000:1000"
+                  />
+                </div>
+              )}
               <div className="flex justify-end gap-2 border-t border-border pt-3">
                 <Button
                   size="sm"

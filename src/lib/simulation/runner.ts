@@ -1438,7 +1438,7 @@ export class SimulationRunner {
             ? lastGrandTotalMinor / Math.max(1, lastLineCount)
             : 0,
           discounted:
-            (negotiationSummary.finalDiscountBps ?? 0) > 0 ||
+            (negotiationSummary.finalDiscountBps ?? 0) > 0 &&
             (negotiationSummary.savingsMinor ?? 0) > 0,
           discountBps: negotiationSummary.finalDiscountBps ?? 0,
           savingsMinor: negotiationSummary.savingsMinor ?? 0,
@@ -1597,7 +1597,9 @@ export class SimulationRunner {
               quantity: requestedQuantity,
               grandTotalMinor: lastGrandTotalMinor,
               perUnitMinor: lastGrandTotalMinor / lastLineCount,
-              discounted: (negotiationSummary.finalDiscountBps ?? 0) > 0,
+              discounted:
+                (negotiationSummary.finalDiscountBps ?? 0) > 0 &&
+                (negotiationSummary.savingsMinor ?? 0) > 0,
               discountBps: negotiationSummary.finalDiscountBps ?? 0,
               savingsMinor: negotiationSummary.savingsMinor ?? 0,
               outcome: negotiationSummary.outcome,

@@ -1,11 +1,11 @@
 /**
  * Merchant Campaign Orchestrator (SaaS-grade)
  *
- * Campaigns are merchant-owned promotional programs persisted in the merchant's
- * config (DB jsonb) — not in code — so they can be stood up and retired from
- * the Admin API / dashboard without redeploys. The deterministic resolution
- * functions here are pure and unit-testable; the orchestrator adds the DB
- * persistence layer on top.
+ * Campaigns are merchant-owned promotional programs stored in a dedicated
+ * `campaigns` database table — not in code or config JSON — so they can be
+ * stood up and retired from the Admin API / dashboard without redeploys. The
+ * deterministic resolution functions here are pure and unit-testable; the
+ * orchestrator adds the DB persistence layer on top.
  *
  * Capabilities:
  *  - Six campaign types: CATEGORY_DISCOUNT, FLAT_DISCOUNT, BUNDLE_DISCOUNT,
@@ -28,8 +28,8 @@
  * quotes UP; a campaign discounts; the two never stack).
  */
 
-import { eq, inArray } from "drizzle-orm";
-import { auditEvents, db, merchants } from "@/db";
+import { and, eq, gte, lte, or, sql } from "drizzle-orm";
+import { auditEvents, campaigns as campaignsTable, db, merchants } from "@/db";
 import { generateId } from "@/lib/utils";
 
 export type CampaignType =
@@ -58,23 +58,14 @@ export interface Campaign {
   endsAt: string;
   status: "draft" | "active" | "paused" | "ended";
   targetAudience?: string;
-  /** AGENT_TARGETED: when set, only these agent ids benefit from the promo. */
   targetAgents?: string[];
-  /** Budget cap on total discount spend (minor units). Undefined = unlimited. */
   budgetMinor?: number;
-  /** Accumulated discount spend (minor units), maintained by the orchestrator. */
   spentMinor?: number;
-  /** Higher priority wins when multiple campaigns match a line. Default 0. */
   priority?: number;
-  /** FLASH_SALE: absolute floor price (minor) a line can never drop below. */
   flashPriceMinor?: number;
-  /** TIERED_DISCOUNT: escalating thresholds (see resolveCampaignForLine). */
   tiers?: CampaignTier[];
-  /** When false (default), this campaign claims the whole line over others. */
   stackable?: boolean;
-  /** A/B experiment tag for reporting. */
   abGroup?: "A" | "B";
-  /** Restrict when the campaign is live to specific UTC weekdays (0=Sun..6). */
   scheduleDays?: number[];
   createdAt: string;
   updatedAt?: string;
@@ -89,12 +80,51 @@ export interface CampaignLineMatch {
 
 const MERCHANT_ID = "mch_nimbus_gear_001";
 const MAX_CAMPAIGNS = 50;
-const MAX_DISCOUNT_BPS = 4000; // Merchant never configures >40% promo off.
+const MAX_DISCOUNT_BPS = 4000;
+
+// ---- DB ↔ Domain mapping
+
+function dbRowToCampaign(row: typeof campaignsTable.$inferSelect): Campaign {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description ?? undefined,
+    type: row.type as CampaignType,
+    category: row.category ?? undefined,
+    variantIds: (row.variant_ids as string[]) || [],
+    discountBps: row.discount_bps,
+    minOrderMinor: row.min_order_minor ?? undefined,
+    startsAt: row.starts_at instanceof Date
+      ? row.starts_at.toISOString()
+      : String(row.starts_at),
+    endsAt: row.ends_at instanceof Date
+      ? row.ends_at.toISOString()
+      : String(row.ends_at),
+    status: row.status as Campaign["status"],
+    targetAudience: row.target_audience ?? undefined,
+    targetAgents: (row.target_agents as string[]) || [],
+    budgetMinor: row.budget_minor ?? undefined,
+    spentMinor: row.spent_minor ?? 0,
+    priority: row.priority ?? 0,
+    flashPriceMinor: row.flash_price_minor ?? undefined,
+    tiers: (row.tiers as CampaignTier[]) || [],
+    stackable: row.stackable ?? false,
+    abGroup: row.ab_group as "A" | "B" | undefined,
+    scheduleDays: (row.schedule_days as number[]) || [],
+    createdAt: row.created_at instanceof Date
+      ? row.created_at.toISOString()
+      : String(row.created_at),
+    updatedAt: row.updated_at instanceof Date
+      ? row.updated_at.toISOString()
+      : String(row.updated_at),
+  };
+}
 
 /**
  * Pure. Decide whether a campaign is live right now (status active AND within
- * its validity window AND today is an allowed schedule day). Deterministic, no
- * DB/clock side effects other than the supplied `now`.
+ * its validity window AND today is an allowed schedule day AND budget not
+ * exhausted). Deterministic, no DB/clock side effects other than the supplied
+ * `now`.
  */
 export function isCampaignLive(
   campaign: Campaign,
@@ -105,8 +135,9 @@ export function isCampaignLive(
   const end = new Date(campaign.endsAt);
   if (!(now >= start && now <= end)) return false;
   if (campaign.scheduleDays && campaign.scheduleDays.length > 0) {
-    return campaign.scheduleDays.includes(now.getUTCDay());
+    if (!campaign.scheduleDays.includes(now.getUTCDay())) return false;
   }
+  if (!hasCampaignBudget(campaign)) return false;
   return true;
 }
 
@@ -163,7 +194,7 @@ export function resolveCampaignForLine(options: {
   for (const campaign of campaigns) {
     if (!isCampaignLive(campaign, now)) continue;
     if (!hasCampaignBudget(campaign)) continue;
-    if (campaign.type === "BUNDLE_DISCOUNT") continue; // bundle-level only
+    if (campaign.type === "BUNDLE_DISCOUNT") continue;
 
     if (
       campaign.minOrderMinor !== undefined &&
@@ -189,7 +220,6 @@ export function resolveCampaignForLine(options: {
 
     if (!baseMatch) continue;
 
-    // AGENT_TARGETED requires the buying agent to be allow-listed.
     if (
       campaign.type === "AGENT_TARGETED" &&
       campaign.targetAgents &&
@@ -201,7 +231,6 @@ export function resolveCampaignForLine(options: {
 
     let bps = campaign.discountBps;
 
-    // TIERED_DISCOUNT picks the highest tier the order subtotal clears.
     if (campaign.type === "TIERED_DISCOUNT" && campaign.tiers?.length) {
       const cleared = campaign.tiers.find(
         (t) =>
@@ -213,8 +242,6 @@ export function resolveCampaignForLine(options: {
 
     let discounted = applyBps(basePriceMinor, bps);
 
-    // FLASH_SALE: keep the price at or above the configured floor price (a
-    // floor is a lower bound — the promo can't discount below it).
     if (
       campaign.type === "FLASH_SALE" &&
       campaign.flashPriceMinor !== undefined
@@ -232,9 +259,6 @@ export function resolveCampaignForLine(options: {
       discountBps: Math.max(0, Math.min(MAX_DISCOUNT_BPS, bps)),
     };
 
-    // Stacking: a non-stackable campaign always claims the line outright. A
-    // stackable one only applies if the current best is also stackable (or we
-    // have no best). Ties resolved by priority, then by higher bps.
     if (!best) {
       best = match;
       continue;
@@ -262,114 +286,10 @@ export function resolveCampaignForLine(options: {
 
 // ---------------------------------------------------------------- persistence
 
-function readCampaigns(config?: Record<string, unknown> | null): Campaign[] {
-  if (!Array.isArray(config?.campaigns)) return [];
-  return config.campaigns as Campaign[];
-}
-
-const DEFAULT_CAMPAIGNS: Array<
-  Omit<Campaign, "id" | "createdAt" | "startsAt" | "endsAt" | "status">
-> = [
-  {
-    name: "Accessory Week",
-    description:
-      "10% off all accessories for AI-agent purchases — pairs with keyboards, mice, laptops and monitors.",
-    type: "CATEGORY_DISCOUNT",
-    category: "accessories",
-    discountBps: 1000,
-    targetAudience: "AI buyer agents",
-  },
-  {
-    name: "Desk Setup Bundle",
-    description:
-      "Buy 2+ accessories together and get an extra 7% off the bundle — learnable checkout basket builder.",
-    type: "BUNDLE_DISCOUNT",
-    variantIds: [
-      "acc_nimbus_deskmat",
-      "acc_nimbus_switch_set",
-      "acc_headphone_stand",
-      "acc_nimbus_stand_alu",
-      "acc_lap_sleeve",
-    ],
-    discountBps: 700,
-    targetAudience: "AI buyer agents building complete desk setups",
-  },
-];
-
-function buildCampaignWindow(): { startsAt: string; endsAt: string } {
-  const now = new Date();
-  const startsAt = new Date(now.getTime() - 60 * 1000);
-  const endsAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-  return { startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString() };
-}
-
-async function getMerchant() {
-  const [merchant] = await db
-    .select()
-    .from(merchants)
-    .where(eq(merchants.id, MERCHANT_ID))
-    .limit(1);
-  return merchant ?? null;
-}
-
-async function saveCampaigns(campaigns: Campaign[]): Promise<Campaign[]> {
-  const merchant = await getMerchant();
-  if (!merchant) throw new Error("Merchant not found");
-
-  const config = (merchant.config as Record<string, unknown>) || {};
-  await db
-    .update(merchants)
-    .set({ config: { ...config, campaigns } })
-    .where(eq(merchants.id, MERCHANT_ID));
-
-  return campaigns;
-}
-
-/** Lazy-seed the demo campaigns the first time the orchestrator is used. */
-export async function ensureDefaultCampaigns(): Promise<Campaign[]> {
-  const merchant = await getMerchant();
-  if (!merchant) return [];
-
-  const config = (merchant.config as Record<string, unknown>) || {};
-  const existing = readCampaigns(config);
-  if (existing.length > 0) return existing;
-
-  const nowIso = new Date().toISOString();
-  const campaigns: Campaign[] = DEFAULT_CAMPAIGNS.map((c) => {
-    const w = buildCampaignWindow();
-    return {
-      ...c,
-      id: generateId("cmp"),
-      status: "active",
-      startsAt: w.startsAt,
-      endsAt: w.endsAt,
-      createdAt: nowIso,
-    };
-  });
-
-  await saveCampaigns(campaigns);
-  return campaigns;
-}
-
-export async function listCampaigns(): Promise<Campaign[]> {
-  const campaigns = await ensureDefaultCampaigns();
-  return campaigns.sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  );
-}
-
-export async function getActiveCampaigns(
-  now: Date = new Date(),
-): Promise<Campaign[]> {
-  const all = await ensureDefaultCampaigns();
-  return all.filter((c) => isCampaignLive(c, now));
-}
-
 function clampDiscount(bps: number): number {
   return Math.max(0, Math.min(MAX_DISCOUNT_BPS, Math.round(Number(bps) || 0)));
 }
 
-/** Validate the new-type specific payloads and derive a default bps. */
 function resolveCampaignDefaults(input: {
   type: CampaignType;
   discountBps?: number;
@@ -389,6 +309,93 @@ function resolveCampaignDefaults(input: {
     return { discountBps: fallback, tiers };
   }
   return { discountBps: clampDiscount(Number(input.discountBps) || 0) };
+}
+
+function buildCampaignWindow(): { startsAt: Date; endsAt: Date } {
+  const now = new Date();
+  const startsAt = new Date(now.getTime() - 60 * 1000);
+  const endsAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  return { startsAt, endsAt };
+}
+
+const DEFAULT_CAMPAIGNS: Array<
+  Omit<
+    Campaign,
+    "id" | "createdAt" | "startsAt" | "endsAt" | "status" | "spentMinor"
+  >
+> = [
+  {
+    name: "Accessory Week",
+    description:
+      "10% off all accessories for AI-agent purchases — pairs with keyboards, mice, laptops and monitors.",
+    type: "CATEGORY_DISCOUNT",
+    category: "accessories",
+    discountBps: 1000,
+    targetAudience: "AI buyer agents",
+  },
+];
+
+/** Lazy-seed the demo campaigns the first time the orchestrator is used. */
+export async function ensureDefaultCampaigns(): Promise<Campaign[]> {
+  const existing = await db
+    .select()
+    .from(campaignsTable)
+    .where(eq(campaignsTable.merchant_id, MERCHANT_ID));
+
+  if (existing.length > 0) {
+    return existing.map(dbRowToCampaign);
+  }
+
+  const w = buildCampaignWindow();
+  const nowIso = new Date().toISOString();
+
+  for (const c of DEFAULT_CAMPAIGNS) {
+    await db.insert(campaignsTable).values({
+      id: generateId("cmp"),
+      merchant_id: MERCHANT_ID,
+      name: c.name,
+      description: c.description,
+      type: c.type,
+      category: c.category,
+      variant_ids: c.variantIds ?? [],
+      discount_bps: c.discountBps,
+      min_order_minor: c.minOrderMinor,
+      starts_at: w.startsAt,
+      ends_at: w.endsAt,
+      status: "active",
+      target_audience: c.targetAudience,
+      target_agents: c.targetAgents ?? [],
+      budget_minor: c.budgetMinor,
+      spent_minor: 0,
+      priority: c.priority ?? 0,
+      flash_price_minor: c.flashPriceMinor,
+      tiers: c.tiers ?? [],
+      stackable: c.stackable ?? false,
+      ab_group: c.abGroup,
+      schedule_days: c.scheduleDays ?? [],
+    });
+  }
+
+  const seeded = await db
+    .select()
+    .from(campaignsTable)
+    .where(eq(campaignsTable.merchant_id, MERCHANT_ID));
+
+  return seeded.map(dbRowToCampaign);
+}
+
+export async function listCampaigns(): Promise<Campaign[]> {
+  const all = await ensureDefaultCampaigns();
+  return all.sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+}
+
+export async function getActiveCampaigns(
+  now: Date = new Date(),
+): Promise<Campaign[]> {
+  const all = await ensureDefaultCampaigns();
+  return all.filter((c) => isCampaignLive(c, now));
 }
 
 export async function standUpCampaign(input: {
@@ -412,7 +419,7 @@ export async function standUpCampaign(input: {
   scheduleDays?: number[];
   abGroup?: "A" | "B";
 }): Promise<Campaign> {
-  const existing = await ensureDefaultCampaigns();
+  const existing = await listCampaigns();
   if (existing.length >= MAX_CAMPAIGNS) {
     throw new Error(`Campaign limit of ${MAX_CAMPAIGNS} reached.`);
   }
@@ -434,80 +441,117 @@ export async function standUpCampaign(input: {
     endsAt = new Date(startsAt.getTime() + 7 * 86400000);
   }
 
-  const campaign: Campaign = {
-    id: generateId("cmp"),
+  const id = generateId("cmp");
+  const nowIso = new Date().toISOString();
+
+  await db.insert(campaignsTable).values({
+    id,
+    merchant_id: MERCHANT_ID,
     name: input.name,
     description: input.description,
     type: input.type,
     category: input.category,
-    variantIds: Array.isArray(input.variantIds)
+    variant_ids: Array.isArray(input.variantIds)
       ? input.variantIds.map(String)
-      : undefined,
-    discountBps,
-    tiers,
-    minOrderMinor:
+      : [],
+    discount_bps: discountBps,
+    tiers: tiers ?? [],
+    min_order_minor:
       Number(input.minOrderMinor) > 0
         ? Math.round(Number(input.minOrderMinor))
         : undefined,
-    startsAt: startsAt.toISOString(),
-    endsAt: endsAt.toISOString(),
+    starts_at: startsAt,
+    ends_at: endsAt,
     status: "active",
-    targetAudience: input.targetAudience,
-    targetAgents: Array.isArray(input.targetAgents)
+    target_audience: input.targetAudience,
+    target_agents: Array.isArray(input.targetAgents)
       ? input.targetAgents.map(String)
-      : undefined,
-    budgetMinor:
+      : [],
+    budget_minor:
       Number(input.budgetMinor) > 0
         ? Math.round(Number(input.budgetMinor))
         : undefined,
-    spentMinor: 0,
+    spent_minor: 0,
     priority: Number.isFinite(Number(input.priority))
       ? Math.round(Number(input.priority))
       : 0,
     stackable: input.stackable === true,
-    flashPriceMinor:
+    flash_price_minor:
       Number(input.flashPriceMinor) > 0
         ? Math.round(Number(input.flashPriceMinor))
         : undefined,
-    scheduleDays: Array.isArray(input.scheduleDays)
+    schedule_days: Array.isArray(input.scheduleDays)
       ? input.scheduleDays.map(Number).filter((d) => d >= 0 && d <= 6)
-      : undefined,
-    abGroup:
+      : [],
+    ab_group:
       input.abGroup === "A" || input.abGroup === "B"
         ? input.abGroup
         : undefined,
-    createdAt: new Date().toISOString(),
-  };
+  });
 
-  await saveCampaigns([campaign, ...existing].slice(0, MAX_CAMPAIGNS));
-  return campaign;
+  const [row] = await db
+    .select()
+    .from(campaignsTable)
+    .where(eq(campaignsTable.id, id))
+    .limit(1);
+
+  return dbRowToCampaign(row);
 }
 
 export async function updateCampaign(
   campaignId: string,
   patch: Partial<Omit<Campaign, "id" | "createdAt">>,
 ): Promise<Campaign | null> {
-  const existing = await ensureDefaultCampaigns();
-  const target = existing.find((c) => c.id === campaignId);
-  if (!target) return null;
+  const [existing] = await db
+    .select()
+    .from(campaignsTable)
+    .where(eq(campaignsTable.id, campaignId))
+    .limit(1);
 
-  const updated = existing.map((c) => {
-    if (c.id !== campaignId) return c;
-    const next: Campaign = {
-      ...c,
-      ...patch,
-      id: c.id,
-      createdAt: c.createdAt,
-      updatedAt: new Date().toISOString(),
-      discountBps: clampDiscount(
-        patch.discountBps !== undefined ? patch.discountBps : c.discountBps,
-      ),
-    };
-    return next;
-  });
+  if (!existing) return null;
 
-  await saveCampaigns(updated);
-  return updated.find((c) => c.id === campaignId) ?? null;
+  const updates: Record<string, unknown> = {
+    updated_at: new Date(),
+  };
+
+  if (patch.name !== undefined) updates.name = patch.name;
+  if (patch.description !== undefined) updates.description = patch.description;
+  if (patch.type !== undefined) updates.type = patch.type;
+  if (patch.category !== undefined) updates.category = patch.category;
+  if (patch.discountBps !== undefined)
+    updates.discount_bps = clampDiscount(patch.discountBps);
+  if (patch.minOrderMinor !== undefined)
+    updates.min_order_minor = patch.minOrderMinor;
+  if (patch.startsAt !== undefined) updates.starts_at = new Date(patch.startsAt);
+  if (patch.endsAt !== undefined) updates.ends_at = new Date(patch.endsAt);
+  if (patch.status !== undefined) updates.status = patch.status;
+  if (patch.targetAudience !== undefined)
+    updates.target_audience = patch.targetAudience;
+  if (patch.targetAgents !== undefined)
+    updates.target_agents = patch.targetAgents;
+  if (patch.budgetMinor !== undefined) updates.budget_minor = patch.budgetMinor;
+  if (patch.spentMinor !== undefined) updates.spent_minor = patch.spentMinor;
+  if (patch.priority !== undefined) updates.priority = patch.priority;
+  if (patch.flashPriceMinor !== undefined)
+    updates.flash_price_minor = patch.flashPriceMinor;
+  if (patch.tiers !== undefined) updates.tiers = patch.tiers;
+  if (patch.stackable !== undefined) updates.stackable = patch.stackable;
+  if (patch.abGroup !== undefined) updates.ab_group = patch.abGroup;
+  if (patch.scheduleDays !== undefined)
+    updates.schedule_days = patch.scheduleDays;
+
+  await db
+    .update(campaignsTable)
+    .set(updates)
+    .where(eq(campaignsTable.id, campaignId));
+
+  const [updated] = await db
+    .select()
+    .from(campaignsTable)
+    .where(eq(campaignsTable.id, campaignId))
+    .limit(1);
+
+  return updated ? dbRowToCampaign(updated) : null;
 }
 
 export async function setCampaignStatus(
@@ -535,36 +579,25 @@ export async function resumeCampaign(
 export async function endCampaign(
   campaignId: string,
 ): Promise<Campaign | null> {
-  const existing = await ensureDefaultCampaigns();
-  const target = existing.find((c) => c.id === campaignId);
-  if (!target) return null;
-
-  const updated = existing.map((c) =>
-    c.id === campaignId
-      ? {
-          ...c,
-          status: "ended" as const,
-          endsAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }
-      : c,
-  );
-  await saveCampaigns(updated);
-  return updated.find((c) => c.id === campaignId) ?? null;
+  return updateCampaign(campaignId, {
+    status: "ended",
+    endsAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
 }
 
 export async function deleteCampaign(campaignId: string): Promise<boolean> {
-  const existing = await ensureDefaultCampaigns();
-  const target = existing.find((c) => c.id === campaignId);
-  if (!target) return false;
-  await saveCampaigns(existing.filter((c) => c.id !== campaignId));
-  return true;
+  const deleted = await db
+    .delete(campaignsTable)
+    .where(eq(campaignsTable.id, campaignId))
+    .returning();
+  return deleted.length > 0;
 }
 
 /**
  * Persist discount spend for one or more campaigns (called once per payment
  * intent so budgets are consumed authoritatively when an order becomes
- * payable). Idempotent-per-call: simply adds `discountMinor` to spentMinor.
+ * payable). Uses atomic SQL increment to avoid read-modify-write races.
  */
 export async function recordCampaignSpend(
   spends: Array<{ campaignId: string; discountMinor: number }>,
@@ -574,16 +607,15 @@ export async function recordCampaignSpend(
   );
   if (clean.length === 0) return;
 
-  const existing = await ensureDefaultCampaigns();
-  const byId = new Map(clean.map((s) => [s.campaignId, s.discountMinor]));
-  const updated = existing.map((c) => {
-    if (!byId.has(c.id)) return c;
-    const spend = byId.get(c.id);
-    if (spend === undefined) return c;
-    return { ...c, spentMinor: (c.spentMinor ?? 0) + spend };
-  });
-
-  await saveCampaigns(updated);
+  for (const spend of clean) {
+    await db
+      .update(campaignsTable)
+      .set({
+        spent_minor: sql`${campaignsTable.spent_minor} + ${spend.discountMinor}`,
+        updated_at: new Date(),
+      })
+      .where(eq(campaignsTable.id, spend.campaignId));
+  }
 }
 
 // ---------------------------------------------------------------- analytics
@@ -594,7 +626,7 @@ export interface CampaignPerformance {
   unitsSold: number;
   revenueMinor: number;
   discountSpendMinor: number;
-  roiBps: number; // discount spend as a share of revenue (per-10000)
+  roiBps: number;
   liveNow: boolean;
   budgetRemainingMinor: number | null;
   budgetPercentUsed: number | null;
@@ -603,8 +635,10 @@ export interface CampaignPerformance {
 /**
  * Compute per-campaign performance from the audit trail. Order-scoped audit
  * events carry a `campaignsApplied` list (id + name + discountBps) in their
- * metadata, captured when the quote was generated. Aggregates across the
- * supplied event window.
+ * metadata, captured when the quote was generated.
+ *
+ * Uses only `checkout_quote_generated` events to avoid double-counting (each
+ * order emits both a quote_generated and payment_succeeded event).
  */
 export async function getCampaignPerformance(
   campaignId?: string,
@@ -615,12 +649,7 @@ export async function getCampaignPerformance(
   const events = await db
     .select()
     .from(auditEvents)
-    .where(
-      inArray(auditEvents.event_type, [
-        "checkout_quote_generated",
-        "payment_succeeded",
-      ]),
-    );
+    .where(eq(auditEvents.event_type, "checkout_quote_generated"));
 
   const byId = new Map<string, CampaignPerformance>(
     campaigns.map((c) => [
@@ -667,17 +696,10 @@ export async function getCampaignPerformance(
       if (!id) continue;
       const perf = byId.get(id);
       if (!perf) continue;
-      if (event.event_type === "checkout_quote_generated") {
-        perf.orders += 1;
-        perf.revenueMinor += grandTotal;
-        perf.unitsSold += Number(entry.quantity) || 1;
-        perf.discountSpendMinor += Number(entry.discountMinor) || 0;
-      } else if (event.event_type === "payment_succeeded") {
-        perf.orders += 1;
-        perf.revenueMinor += grandTotal;
-        perf.unitsSold += Number(entry.quantity) || 1;
-        perf.discountSpendMinor += Number(entry.discountMinor) || 0;
-      }
+      perf.orders += 1;
+      perf.revenueMinor += grandTotal;
+      perf.unitsSold += Number(entry.quantity) || 1;
+      perf.discountSpendMinor += Number(entry.discountMinor) || 0;
     }
   }
 

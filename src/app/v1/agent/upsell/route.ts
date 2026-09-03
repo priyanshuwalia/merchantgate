@@ -97,6 +97,7 @@ export async function POST(request: NextRequest) {
       category: p.category,
       unitAmountMinor: p.base_price_minor,
       stockQuantity: p.stock_quantity,
+      returnable: p.returnable,
       attributes: (p.attributes as Record<string, unknown>) || {},
     }));
 
@@ -122,11 +123,16 @@ export async function POST(request: NextRequest) {
     }));
 
     const rules = getUpsellRules(merchantConfig);
+    const requiresRefundable =
+      body.requiresRefundable !== undefined
+        ? Boolean(body.requiresRefundable)
+        : false;
     const result = generateUpsellOffers({
       cart: cartItems,
       catalog,
       rules,
       marketBaskets,
+      requiresRefundable,
     });
 
     await logAuditEvent({

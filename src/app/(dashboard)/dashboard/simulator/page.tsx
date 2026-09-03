@@ -238,6 +238,7 @@ export default function SimulatorPage() {
   const [upsellDecision, setUpsellDecision] = useState<
     "pending" | "accepting" | "accepting_checkout" | "declined"
   >("pending");
+  const [acceptingOfferId, setAcceptingOfferId] = useState<string | null>(null);
   const [upsellError, setUpsellError] = useState<string | null>(null);
 
   const isMandateReady = Boolean(
@@ -486,7 +487,8 @@ export default function SimulatorPage() {
 
       if (data.settlement) {
         const s = data.settlement;
-        const discounted = s.discounted || (s.discountBps ?? 0) > 0;
+        const hasRealSavings =
+          (s.discountBps ?? 0) > 0 && (s.savingsMinor ?? 0) > 0;
         pushToast({
           title:
             data.finalDecision === "ALLOW"
@@ -500,7 +502,7 @@ export default function SimulatorPage() {
           quantity: s.quantity,
           grandTotalMinor: s.grandTotalMinor,
           perUnitMinor: s.perUnitMinor,
-          bargain: discounted
+          bargain: hasRealSavings
             ? {
                 discountBps: s.discountBps,
                 savingsMinor: s.savingsMinor,
@@ -659,8 +661,7 @@ export default function SimulatorPage() {
           decisionId: pending.decisionId,
           paymentMethod: "razorpay_checkout",
         }),
-      });
-      const data = await res.json();
+      });      const data = await res.json();
       if (res.ok && data.success) {
         setUpsellDecision("declined");
         const declineSettlement: SettlementInfo = {
@@ -713,6 +714,7 @@ export default function SimulatorPage() {
     if (!pending) return;
     setUpsellError(null);
     setUpsellDecision("accepting_checkout");
+    setAcceptingOfferId(offerId);
     try {
       // 1. Re-checkout with the accepted upsell offer id (the merchant
       //    authoritatively re-resolves the offer items and merges them).
@@ -743,6 +745,24 @@ export default function SimulatorPage() {
         setUpsellError(
           checkoutData.error ||
             "The combo offer could not be added to the cart (it may have expired).",
+        );
+        return;
+      }
+
+      // The upsold cart re-runs the full policy gate. Only an ALLOW decision
+      // produces a payable Razorpay order — a DENY/STEP_UP cart carries no
+      // payment intent, so confirming it would fail. Surface the real decision
+      // instead of a cryptic 500.
+      const upsellDecisionValue = checkoutData.policyEvaluation.decision;
+      if (upsellDecisionValue === "DENY") {
+        setUpsellError(
+          `The upsold cart was declined by policy: ${(checkoutData.policyEvaluation.reasonCodes || []).join(", ") || "not within the buyer's mandate"}. No payment was created.`,
+        );
+        return;
+      }
+      if (upsellDecisionValue === "STEP_UP") {
+        setUpsellError(
+          "The upsold cart requires human merchant approval (STEP_UP). It has been queued — no payment was created.",
         );
         return;
       }
@@ -812,6 +832,7 @@ export default function SimulatorPage() {
       setUpsellError(String(e instanceof Error ? e.message : e));
     } finally {
       setUpsellDecision("pending");
+      setAcceptingOfferId(null);
     }
   };
 
@@ -1388,13 +1409,23 @@ export default function SimulatorPage() {
                         <p className="text-sm font-semibold text-text-primary">
                           {offer.title}
                         </p>
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] gap-1 text-[#00875c] border-[#00b874]/30"
-                        >
-                          <Tag className="w-3 h-3" />
-                          save {formatMinorUnits(offer.bundleDiscountMinor)}
-                        </Badge>
+                        {offer.bundleDiscountMinor > 0 ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] gap-1 text-[#00875c] border-[#00b874]/30"
+                          >
+                            <Tag className="w-3 h-3" />
+                            save {formatMinorUnits(offer.bundleDiscountMinor)}
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] gap-1 text-text-muted border-border"
+                          >
+                            <Tag className="w-3 h-3" />
+                            add-on
+                          </Badge>
+                        )}
                       </div>
                       {offer.description && (
                         <p className="text-[11px] text-text-muted mt-1">
@@ -1449,11 +1480,13 @@ export default function SimulatorPage() {
                           onClick={() => handleAcceptUpsell(offer.offerId)}
                           disabled={
                             upsellDecision === "accepting" ||
-                            upsellDecision === "accepting_checkout"
+                            (upsellDecision === "accepting_checkout" &&
+                              acceptingOfferId !== offer.offerId)
                           }
                         >
                           <Check className="w-3.5 h-3.5" />
-                          {upsellDecision === "accepting_checkout"
+                          {upsellDecision === "accepting_checkout" &&
+                          acceptingOfferId === offer.offerId
                             ? "Adding…"
                             : "Add & Pay"}
                         </Button>

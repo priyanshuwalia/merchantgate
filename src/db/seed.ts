@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { eq } from "drizzle-orm";
-import { agents, db, merchants, products } from "./index";
+import { agents, campaigns, db, merchants, products } from "./index";
 
 export async function seedDatabase() {
   console.log("🌱 Starting AgentPay Merchant Database Seed...");
@@ -385,6 +385,53 @@ export async function seedDatabase() {
       await db.insert(agents).values(agent);
       console.log(`✅ Seeded agent: ${agent.display_name} (${agent.id})`);
     }
+  }
+
+  // 4. Default Campaigns
+  const existingCampaigns = await db
+    .select()
+    .from(campaigns)
+    .where(eq(campaigns.merchant_id, merchantId));
+
+  if (existingCampaigns.length === 0) {
+    const now = new Date();
+    const startsAt = new Date(now.getTime() - 60 * 1000);
+    const endsAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const defaultCampaigns = [
+      {
+        id: `cmp_seed_acc_week`,
+        merchant_id: merchantId,
+        name: "Accessory Week",
+        description:
+          "10% off all accessories for AI-agent purchases — pairs with keyboards, mice, laptops and monitors.",
+        type: "CATEGORY_DISCOUNT",
+        category: "accessories",
+        variant_ids: [],
+        discount_bps: 1000,
+        min_order_minor: null,
+        starts_at: startsAt,
+        ends_at: endsAt,
+        status: "active",
+        target_audience: "AI buyer agents",
+        target_agents: [],
+        budget_minor: null,
+        spent_minor: 0,
+        priority: 0,
+        flash_price_minor: null,
+        tiers: [],
+        stackable: false,
+        ab_group: null,
+        schedule_days: [],
+      },
+    ];
+
+    for (const c of defaultCampaigns) {
+      await db.insert(campaigns).values(c);
+      console.log(`✅ Seeded campaign: ${c.name}`);
+    }
+  } else {
+    console.log(`ℹ️ ${existingCampaigns.length} campaign(s) already exist.`);
   }
 
   console.log("✨ Seeding completed successfully!");

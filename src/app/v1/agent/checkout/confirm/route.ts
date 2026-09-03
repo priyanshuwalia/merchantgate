@@ -244,6 +244,21 @@ export async function POST(request: NextRequest) {
           );
         }
 
+        // A payment intent can only be created for an ALLOW decision. A DENY /
+        // STEP_UP cart carries no payment authorization — reject cleanly
+        // instead of failing deep in preparePayment with a 500.
+        if (decision.decision !== "ALLOW") {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "TRANSACTION_NOT_AUTHORIZED",
+              decision: decision.decision,
+              message: `This cart's policy decision is ${decision.decision}, so no payment order can be created.`,
+            },
+            { status: 409 },
+          );
+        }
+
         const preparedPayment = await preparePayment({
           cartMandateId,
           decisionId: decision.id,
@@ -401,10 +416,12 @@ export async function POST(request: NextRequest) {
     }
 
     console.error("Error in checkout confirm:", error);
+    const message =
+      error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
       {
         success: false,
-        error: "Internal server error confirming checkout",
+        error: `Internal server error confirming checkout: ${message}`,
       },
       { status: 500 },
     );

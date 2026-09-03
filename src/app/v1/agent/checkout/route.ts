@@ -189,6 +189,28 @@ export async function POST(request: Request) {
       addedMinor: number;
     } | null = null;
     const upsellRules = getUpsellRules(merchantConfig);
+
+    // The buyer's refundability requirement must shape which cross-sell items
+    // are offered: a mandate requiring refundable goods never sees a
+    // non-returnable upsell (policy would otherwise hard-DENY the merged cart
+    // with NON_REFUNDABLE_ITEM_DISALLOWED). Resolve it from the client-supplied
+    // mandate, the stored mandate, or the merchant's safe default (refundable).
+    let requiresRefundable = true;
+    if (clientMandate) {
+      requiresRefundable =
+        (clientMandate as IntentMandate).constraints?.requiresRefundability ??
+        true;
+    } else if (intentMandateId) {
+      const [dbMandate] = await db
+        .select()
+        .from(intentMandates)
+        .where(eq(intentMandates.id, intentMandateId))
+        .limit(1);
+      requiresRefundable =
+        (dbMandate?.mandate_json as IntentMandate | null)?.constraints
+          ?.requiresRefundability ?? true;
+    }
+
     if (upsellOfferId && !surgeActive && upsellRules.enabled) {
       const cartSummary: UpsellCartItem[] = requestedItems.reduce<
         UpsellCartItem[]
@@ -233,6 +255,7 @@ export async function POST(request: Request) {
         category: p.category,
         unitAmountMinor: p.base_price_minor,
         stockQuantity: p.stock_quantity,
+        returnable: p.returnable,
         attributes: (p.attributes as Record<string, unknown>) || {},
       }));
 
@@ -242,6 +265,7 @@ export async function POST(request: Request) {
         rules: upsellRules,
         marketBaskets,
         upsellOfferId,
+        requiresRefundable,
       });
 
       if (offerItems) {
