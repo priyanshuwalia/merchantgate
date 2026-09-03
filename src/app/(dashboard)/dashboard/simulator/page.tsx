@@ -247,9 +247,10 @@ export default function SimulatorPage() {
   const effectiveMaxCapInr =
     (customBudgetInr || 0) * (1 + customTolerancePercent / 100);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-scroll when messages change
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, []);
+  }, [messages]);
 
   // Load the merchant's saved model status for the header badge
   useEffect(() => {
