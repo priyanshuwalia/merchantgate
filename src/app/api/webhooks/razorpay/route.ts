@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import {
@@ -15,6 +15,32 @@ import { generateId, generateTraceId } from "@/lib/utils";
 import { webhookInspectorStore } from "@/lib/webhooks/inspector-store";
 
 export const dynamic = "force-dynamic";
+
+interface RazorpayWebhookPayload {
+  event?: string;
+  id?: string;
+  payload?: {
+    payment?: {
+      entity?: {
+        id?: string;
+        order_id?: string;
+        error_description?: string;
+      };
+    };
+    order?: {
+      entity?: {
+        id?: string;
+      };
+    };
+    refund?: {
+      entity?: {
+        id?: string;
+        payment_id?: string;
+        error_description?: string;
+      };
+    };
+  };
+}
 
 export async function POST(request: NextRequest) {
   const traceId = generateTraceId();
@@ -54,11 +80,11 @@ export async function POST(request: NextRequest) {
       .update(rawBody)
       .digest("hex");
 
-    let payload: any = {};
+    let payload: RazorpayWebhookPayload = {};
     try {
-      payload = JSON.parse(rawBody);
+      payload = JSON.parse(rawBody) as RazorpayWebhookPayload;
     } catch {
-      payload = { raw: rawBody };
+      payload = { raw: rawBody } as RazorpayWebhookPayload;
     }
 
     const eventType = payload.event || "unknown";

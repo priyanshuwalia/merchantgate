@@ -12,18 +12,15 @@ import { useEffect, useState } from "react";
 import { Header } from "@/components/dashboard/Header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { evaluatePolicy } from "@/lib/policy/engine";
+import {
+  evaluatePolicy,
+  type PolicyEvaluationResult,
+} from "@/lib/policy/engine";
 
 export default function PoliciesPage() {
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
 
   // Policy Settings
@@ -38,7 +35,9 @@ export default function PoliciesPage() {
   const [testAmountInr, setTestAmountInr] = useState(3499);
   const [testDiscoveryInr, setTestDiscoveryInr] = useState(3000);
   const [testCategory, setTestCategory] = useState("electronics");
-  const [testResult, setTestResult] = useState<any>(null);
+  const [testResult, setTestResult] = useState<PolicyEvaluationResult | null>(
+    null,
+  );
 
   useEffect(() => {
     async function loadSettings() {
@@ -83,9 +82,12 @@ export default function PoliciesPage() {
   };
 
   const runPolicyTest = () => {
-    const mockMandate: any = {
+    const mockMandate: import("@/lib/policy/engine").IntentMandate = {
       type: "intent_mandate.v1",
       id: "int_test_sandbox",
+      revision: 1,
+      principal: { userId: "user_test" },
+      delegate: { agentId: "agent_test", agentVersion: "1.0.0" },
       constraints: {
         currency: "INR",
         // Sandbox test ceiling (₹1,000) — was `maxAmountInr * 100` when the
@@ -100,7 +102,7 @@ export default function PoliciesPage() {
       },
     };
 
-    const mockCart: any = {
+    const mockCart: import("@/lib/policy/engine").CartMandateQuote = {
       merchantId: "mch_nimbus_gear_001",
       items: [
         {
@@ -177,7 +179,10 @@ export default function PoliciesPage() {
                 {/* Setting 2: Price Slippage Tolerance */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-foreground font-medium">
+                    <label
+                      htmlFor="slippage-bps"
+                      className="text-foreground font-medium"
+                    >
                       Price Slippage Tolerance (Basis Points)
                     </label>
                     <span className="text-primary font-mono font-semibold">
@@ -190,6 +195,7 @@ export default function PoliciesPage() {
                     STEP_UP requirement.
                   </p>
                   <input
+                    id="slippage-bps"
                     type="range"
                     min="0"
                     max="1000"
@@ -210,8 +216,12 @@ export default function PoliciesPage() {
                   </label>
                   */}
 
-                  <label className="flex items-start gap-3 cursor-pointer">
+                  <label
+                    htmlFor="auto-process-orders"
+                    className="flex items-start gap-3 cursor-pointer"
+                  >
                     <input
+                      id="auto-process-orders"
                       type="checkbox"
                       checked={autoProcessOrders}
                       onChange={(e) => setAutoProcessOrders(e.target.checked)}
@@ -254,10 +264,14 @@ export default function PoliciesPage() {
 
               <div className="space-y-3">
                 <div>
-                  <label className="block text-foreground mb-1">
+                  <label
+                    htmlFor="test-quoted-price"
+                    className="block text-foreground mb-1"
+                  >
                     Quoted Cart Price (₹)
                   </label>
                   <Input
+                    id="test-quoted-price"
                     type="number"
                     value={testAmountInr}
                     onChange={(e) => setTestAmountInr(Number(e.target.value))}
@@ -266,10 +280,14 @@ export default function PoliciesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-foreground mb-1">
+                  <label
+                    htmlFor="test-discovery-price"
+                    className="block text-foreground mb-1"
+                  >
                     Agent Discovery Price (₹)
                   </label>
                   <Input
+                    id="test-discovery-price"
                     type="number"
                     value={testDiscoveryInr}
                     onChange={(e) =>
@@ -280,10 +298,14 @@ export default function PoliciesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-foreground mb-1">
+                  <label
+                    htmlFor="test-category"
+                    className="block text-foreground mb-1"
+                  >
                     Item Category
                   </label>
                   <select
+                    id="test-category"
                     value={testCategory}
                     onChange={(e) => setTestCategory(e.target.value)}
                     className="h-9 w-full px-3 rounded-lg bg-white border border-input text-xs text-foreground focus:outline-none focus:border-primary focus:shadow-[0_0_0_3px_rgba(0,102,255,0.1)]"

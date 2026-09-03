@@ -2,8 +2,8 @@
 
 import { Globe, Menu } from "lucide-react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
 import { LogoLockup } from "@/components/branding/Logo";
+import { cn } from "@/lib/utils";
 
 export function TopNavbar({ onMobileToggle }: { onMobileToggle: () => void }) {
   return (

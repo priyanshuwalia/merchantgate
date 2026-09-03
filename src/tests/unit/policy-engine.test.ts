@@ -1,11 +1,7 @@
 import "./_setup";
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import type {
-  CartMandateQuote,
-  IntentMandate,
-  MerchantPolicyConfig,
-} from "@/lib/policy/engine";
+import type { CartMandateQuote, IntentMandate } from "@/lib/policy/engine";
 import { evaluatePolicy } from "@/lib/policy/engine";
 
 function buildMandate(

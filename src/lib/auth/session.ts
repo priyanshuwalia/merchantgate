@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 
 /** @constant Name of the signed session cookie used to authenticate the merchant dashboard. */
 export const SESSION_COOKIE = "ap_merchant_session";

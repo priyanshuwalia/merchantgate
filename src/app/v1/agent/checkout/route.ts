@@ -126,7 +126,7 @@ export async function POST(request: Request) {
     }
 
     const merchantId = "mch_nimbus_gear_001";
-    const [merchant] = await db
+    const [_merchant] = await db
       .select()
       .from(merchants)
       .where(eq(merchants.id, merchantId))
@@ -492,7 +492,7 @@ export async function POST(request: Request) {
     }
 
     // Bound the (possibly buyer-supplied) mandate before any policy decision.
-    resolvedMandate = sanitizeMandate(resolvedMandate!);
+    resolvedMandate = sanitizeMandate(resolvedMandate);
 
     // B5: count committed rolling spend (reservations + completed payments,
     // ≤ 30 days) for this mandate so the policy engine enforces the REAL

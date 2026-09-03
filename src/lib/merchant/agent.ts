@@ -139,18 +139,26 @@ export function sanitizeMerchantRules(
     return Math.max(1, Math.min(MAX_QTY, Math.round(n)));
   };
 
-  if (out.bulkDiscountBps !== undefined)
-    out.bulkDiscountBps = clampBps(out.bulkDiscountBps)!;
-  if (out.maxDiscountBps !== undefined)
-    out.maxDiscountBps = clampBps(out.maxDiscountBps)!;
-  if (out.minimumMarginBps !== undefined)
-    out.minimumMarginBps = clampBps(out.minimumMarginBps)!;
-  if (out.requireApprovalAboveDiscountBps !== undefined)
-    out.requireApprovalAboveDiscountBps = clampBps(
-      out.requireApprovalAboveDiscountBps,
-    )!;
-  if (out.bulkMinQuantity !== undefined)
-    out.bulkMinQuantity = clampQty(out.bulkMinQuantity)!;
+  if (out.bulkDiscountBps !== undefined) {
+    const clamped = clampBps(out.bulkDiscountBps);
+    if (clamped !== undefined) out.bulkDiscountBps = clamped;
+  }
+  if (out.maxDiscountBps !== undefined) {
+    const clamped = clampBps(out.maxDiscountBps);
+    if (clamped !== undefined) out.maxDiscountBps = clamped;
+  }
+  if (out.minimumMarginBps !== undefined) {
+    const clamped = clampBps(out.minimumMarginBps);
+    if (clamped !== undefined) out.minimumMarginBps = clamped;
+  }
+  if (out.requireApprovalAboveDiscountBps !== undefined) {
+    const clamped = clampBps(out.requireApprovalAboveDiscountBps);
+    if (clamped !== undefined) out.requireApprovalAboveDiscountBps = clamped;
+  }
+  if (out.bulkMinQuantity !== undefined) {
+    const clamped = clampQty(out.bulkMinQuantity);
+    if (clamped !== undefined) out.bulkMinQuantity = clamped;
+  }
 
   // Internal consistency: bulk discount must respect the max ceiling; the
   // human-approval threshold must sit at or below the max ceiling.

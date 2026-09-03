@@ -259,7 +259,7 @@ export class SimulationRunner {
   }
 
   private async comms(
-    step: string,
+    _step: string,
     ctx: Parameters<typeof generateExchange>[0],
     fallback: SimulationCommunication[],
   ): Promise<SimulationCommunication[]> {
@@ -283,7 +283,7 @@ export class SimulationRunner {
    * merchant reply arrives from the live /v1/agent/negotiate protocol call.
    */
   private async buyerLine(
-    step: string,
+    _step: string,
     ctx: Parameters<typeof generateExchange>[0],
     fallback: string,
   ): Promise<SimulationCommunication[]> {

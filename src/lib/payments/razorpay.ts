@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import Razorpay from "razorpay";
 
 export function getRazorpayClient(): {
@@ -34,22 +34,42 @@ export interface CreateOrderParams {
   notes?: Record<string, string>;
 }
 
+interface RazorpayOrder {
+  id: string;
+  amount: number;
+  currency: string;
+  status: string;
+}
+
+interface RazorpayRefund {
+  id: string;
+  status: string;
+}
+
+interface RazorpayError {
+  error?: unknown;
+}
+
 export async function createOrder(params: CreateOrderParams) {
   const { amountMinor, currency = "INR", receipt, notes = {} } = params;
   const { client, keyId } = getRazorpayClient();
 
-  if (client) {
+  if (client && keyId) {
     try {
       console.log(
         `[Razorpay] Creating real order for ${currency} ${(amountMinor / 100).toFixed(2)} (receipt: ${receipt})...`,
       );
-      const order: any = await (client.orders as any).create({
+      const order: RazorpayOrder = (await (
+        client.orders as {
+          create: (o: object) => Promise<RazorpayOrder>;
+        }
+      ).create({
         amount: amountMinor,
         currency: currency.toUpperCase(),
         receipt: receipt.slice(0, 40), // Razorpay receipt max length is 40 chars
         notes,
         payment_capture: true,
-      });
+      })) as RazorpayOrder;
 
       console.log(
         `[Razorpay] Real Order Created: ${order.id} (Status: ${order.status})`,
@@ -60,13 +80,13 @@ export async function createOrder(params: CreateOrderParams) {
         amount: Number(order.amount),
         currency: String(order.currency),
         status: String(order.status),
-        keyId: keyId!,
+        keyId,
         isMock: false,
       };
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(
         "[Razorpay] API call failed with error:",
-        err?.error || err,
+        (err as RazorpayError)?.error || err,
       );
     }
   } else {
@@ -161,14 +181,22 @@ export async function refundPayment(params: {
     console.log(
       `[Razorpay] Issuing real refund for payment ${params.paymentId} (amount ${params.amountMinor} minor)...`,
     );
-    const refund: any = await (client.payments as any).refund(
-      params.paymentId,
-      {
-        amount: params.amountMinor,
-        speed: "normal",
-        notes: params.notes || {},
-      },
-    );
+    const refund: RazorpayRefund = (await (
+      client.payments as {
+        refund: (
+          paymentId: string,
+          options: {
+            amount: number;
+            speed: string;
+            notes: Record<string, string>;
+          },
+        ) => Promise<RazorpayRefund>;
+      }
+    ).refund(params.paymentId, {
+      amount: params.amountMinor,
+      speed: "normal",
+      notes: params.notes || {},
+    })) as RazorpayRefund;
 
     console.log(
       `[Razorpay] Refund created: ${refund.id} (status: ${refund.status})`,
@@ -178,8 +206,11 @@ export async function refundPayment(params: {
       status: String(refund.status),
       isMock: false,
     };
-  } catch (err: any) {
-    console.error("[Razorpay] Refund API call failed:", err?.error || err);
+  } catch (err: unknown) {
+    console.error(
+      "[Razorpay] Refund API call failed:",
+      (err as RazorpayError)?.error || err,
+    );
     return null;
   }
 }

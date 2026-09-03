@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
               `data: ${JSON.stringify({ type: "new_log", log })}\n\n`,
             ),
           );
-        } catch (err) {
+        } catch (_err) {
           unsubscribe();
         }
       });

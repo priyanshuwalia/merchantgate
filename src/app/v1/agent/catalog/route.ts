@@ -37,10 +37,10 @@ export async function GET(request: NextRequest) {
     if (category) {
       conditions.push(eq(products.category, category));
     }
-    if (minPrice !== undefined && !isNaN(minPrice)) {
+    if (minPrice !== undefined && !Number.isNaN(minPrice)) {
       conditions.push(gte(products.base_price_minor, minPrice));
     }
-    if (maxPrice !== undefined && !isNaN(maxPrice)) {
+    if (maxPrice !== undefined && !Number.isNaN(maxPrice)) {
       conditions.push(lte(products.base_price_minor, maxPrice));
     }
     if (inStock) {

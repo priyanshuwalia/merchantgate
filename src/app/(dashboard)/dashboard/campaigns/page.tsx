@@ -18,7 +18,7 @@ import {
   TrendingDown,
   Wallet,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Header } from "@/components/dashboard/Header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -192,7 +192,7 @@ export default function CampaignsPage() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       const [listRes, perfRes] = await Promise.all([
         fetch("/api/merchant/campaigns"),
@@ -207,13 +207,13 @@ export default function CampaignsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     load();
     const t = setInterval(load, 30000);
     return () => clearInterval(t);
-  }, []);
+  }, [load]);
 
   const totals = useMemo(() => {
     const active = campaigns.filter((c) => c.status === "active");
@@ -764,16 +764,28 @@ export default function CampaignsPage() {
           <div className="grid gap-3 text-xs">
             <div className="grid gap-2 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block font-medium">Name</label>
+                <label
+                  htmlFor="campaign-name"
+                  className="mb-1 block font-medium"
+                >
+                  Name
+                </label>
                 <Input
+                  id="campaign-name"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   placeholder="Summer Accessory Sale"
                 />
               </div>
               <div>
-                <label className="mb-1 block font-medium">Type</label>
+                <label
+                  htmlFor="campaign-type"
+                  className="mb-1 block font-medium"
+                >
+                  Type
+                </label>
                 <select
+                  id="campaign-type"
                   value={form.type}
                   onChange={(e) => setForm({ ...form, type: e.target.value })}
                   className="h-9 w-full px-2 rounded-md bg-white border border-input text-xs focus:outline-none focus:border-primary"
@@ -787,8 +799,14 @@ export default function CampaignsPage() {
               </div>
             </div>
             <div>
-              <label className="mb-1 block font-medium">Description</label>
+              <label
+                htmlFor="campaign-description"
+                className="mb-1 block font-medium"
+              >
+                Description
+              </label>
               <Textarea
+                id="campaign-description"
                 value={form.description}
                 onChange={(e) =>
                   setForm({ ...form, description: e.target.value })
@@ -799,8 +817,14 @@ export default function CampaignsPage() {
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block font-medium">Category</label>
+                <label
+                  htmlFor="campaign-category"
+                  className="mb-1 block font-medium"
+                >
+                  Category
+                </label>
                 <Input
+                  id="campaign-category"
                   value={form.category}
                   onChange={(e) =>
                     setForm({ ...form, category: e.target.value })
@@ -809,10 +833,14 @@ export default function CampaignsPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block font-medium">
+                <label
+                  htmlFor="campaign-variant-ids"
+                  className="mb-1 block font-medium"
+                >
                   Variant ids (comma-separated)
                 </label>
                 <Input
+                  id="campaign-variant-ids"
                   value={form.variantIds}
                   onChange={(e) =>
                     setForm({ ...form, variantIds: e.target.value })
@@ -823,10 +851,14 @@ export default function CampaignsPage() {
             </div>
             <div className="grid gap-2 sm:grid-cols-3">
               <div>
-                <label className="mb-1 block font-medium">
+                <label
+                  htmlFor="campaign-discount-bps"
+                  className="mb-1 block font-medium"
+                >
                   Discount bps (0–4000)
                 </label>
                 <Input
+                  id="campaign-discount-bps"
                   type="number"
                   value={form.discountBps}
                   onChange={(e) =>
@@ -835,8 +867,14 @@ export default function CampaignsPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block font-medium">Min order (₹)</label>
+                <label
+                  htmlFor="campaign-min-order"
+                  className="mb-1 block font-medium"
+                >
+                  Min order (₹)
+                </label>
                 <Input
+                  id="campaign-min-order"
                   type="number"
                   value={form.minOrderMinor}
                   onChange={(e) =>
@@ -846,10 +884,14 @@ export default function CampaignsPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block font-medium">
+                <label
+                  htmlFor="campaign-duration"
+                  className="mb-1 block font-medium"
+                >
                   Duration (days)
                 </label>
                 <Input
+                  id="campaign-duration"
                   type="number"
                   value={form.durationDays}
                   onChange={(e) =>
@@ -860,8 +902,14 @@ export default function CampaignsPage() {
             </div>
             <div className="grid gap-2 sm:grid-cols-3">
               <div>
-                <label className="mb-1 block font-medium">Budget cap (₹)</label>
+                <label
+                  htmlFor="campaign-budget"
+                  className="mb-1 block font-medium"
+                >
+                  Budget cap (₹)
+                </label>
                 <Input
+                  id="campaign-budget"
                   type="number"
                   value={form.budgetMinor}
                   onChange={(e) =>
@@ -871,8 +919,14 @@ export default function CampaignsPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block font-medium">Priority</label>
+                <label
+                  htmlFor="campaign-priority"
+                  className="mb-1 block font-medium"
+                >
+                  Priority
+                </label>
                 <Input
+                  id="campaign-priority"
                   type="number"
                   value={form.priority}
                   onChange={(e) =>
@@ -881,10 +935,14 @@ export default function CampaignsPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block font-medium">
+                <label
+                  htmlFor="campaign-flash-floor"
+                  className="mb-1 block font-medium"
+                >
                   Flash floor (₹)
                 </label>
                 <Input
+                  id="campaign-flash-floor"
                   type="number"
                   value={form.flashPriceMinor}
                   onChange={(e) =>
@@ -896,10 +954,14 @@ export default function CampaignsPage() {
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block font-medium">
+                <label
+                  htmlFor="campaign-target-agents"
+                  className="mb-1 block font-medium"
+                >
                   Agent ids (comma-separated, AGENT_TARGETED)
                 </label>
                 <Input
+                  id="campaign-target-agents"
                   value={form.targetAgents}
                   onChange={(e) =>
                     setForm({ ...form, targetAgents: e.target.value })
@@ -908,10 +970,14 @@ export default function CampaignsPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block font-medium">
+                <label
+                  htmlFor="campaign-schedule-days"
+                  className="mb-1 block font-medium"
+                >
                   Schedule weekdays (0-6, comma)
                 </label>
                 <Input
+                  id="campaign-schedule-days"
                   value={form.scheduleDays}
                   onChange={(e) =>
                     setForm({ ...form, scheduleDays: e.target.value })
@@ -921,13 +987,17 @@ export default function CampaignsPage() {
               </div>
             </div>
             <div>
-              <label className="mb-1 block font-medium">
+              <label
+                htmlFor="campaign-tiers"
+                className="mb-1 block font-medium"
+              >
                 Tiered discounts (TIERED_DISCOUNT):{" "}
                 <span className="text-text-muted">
                   minOrder:bps;minOrder:bps
                 </span>
               </label>
               <Input
+                id="campaign-tiers"
                 value={form.tiers}
                 onChange={(e) => setForm({ ...form, tiers: e.target.value })}
                 placeholder="50000:500;100000:1000"
@@ -1002,8 +1072,14 @@ export default function CampaignsPage() {
             <div className="grid gap-3 text-xs">
               <div className="grid gap-2 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block font-medium">Description</label>
+                  <label
+                    htmlFor="edit-campaign-description"
+                    className="mb-1 block font-medium"
+                  >
+                    Description
+                  </label>
                   <Input
+                    id="edit-campaign-description"
                     value={editTarget.description || ""}
                     onChange={(e) =>
                       setEditField("description", e.target.value)
@@ -1011,8 +1087,14 @@ export default function CampaignsPage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block font-medium">Category</label>
+                  <label
+                    htmlFor="edit-campaign-category"
+                    className="mb-1 block font-medium"
+                  >
+                    Category
+                  </label>
                   <Input
+                    id="edit-campaign-category"
                     value={editTarget.category || ""}
                     onChange={(e) => setEditField("category", e.target.value)}
                   />
@@ -1020,8 +1102,14 @@ export default function CampaignsPage() {
               </div>
               <div className="grid gap-2 sm:grid-cols-3">
                 <div>
-                  <label className="mb-1 block font-medium">Discount bps</label>
+                  <label
+                    htmlFor="edit-campaign-discount-bps"
+                    className="mb-1 block font-medium"
+                  >
+                    Discount bps
+                  </label>
                   <Input
+                    id="edit-campaign-discount-bps"
                     type="number"
                     value={editTarget.discountBps}
                     onChange={(e) =>
@@ -1030,10 +1118,14 @@ export default function CampaignsPage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block font-medium">
+                  <label
+                    htmlFor="edit-campaign-min-order"
+                    className="mb-1 block font-medium"
+                  >
                     Min order (₹)
                   </label>
                   <Input
+                    id="edit-campaign-min-order"
                     type="number"
                     value={editTarget.minOrderMinor || ""}
                     onChange={(e) =>
@@ -1045,8 +1137,14 @@ export default function CampaignsPage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block font-medium">Priority</label>
+                  <label
+                    htmlFor="edit-campaign-priority"
+                    className="mb-1 block font-medium"
+                  >
+                    Priority
+                  </label>
                   <Input
+                    id="edit-campaign-priority"
                     type="number"
                     value={editTarget.priority || 0}
                     onChange={(e) =>
@@ -1057,10 +1155,14 @@ export default function CampaignsPage() {
               </div>
               <div className="grid gap-2 sm:grid-cols-3">
                 <div>
-                  <label className="mb-1 block font-medium">
+                  <label
+                    htmlFor="edit-campaign-budget"
+                    className="mb-1 block font-medium"
+                  >
                     Budget cap (₹)
                   </label>
                   <Input
+                    id="edit-campaign-budget"
                     type="number"
                     value={editTarget.budgetMinor || ""}
                     onChange={(e) =>
@@ -1072,10 +1174,14 @@ export default function CampaignsPage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block font-medium">
+                  <label
+                    htmlFor="edit-campaign-variant-ids"
+                    className="mb-1 block font-medium"
+                  >
                     Variant ids (comma)
                   </label>
                   <Input
+                    id="edit-campaign-variant-ids"
                     value={editTarget.variantIds?.join(", ") || ""}
                     onChange={(e) =>
                       setEditField(
@@ -1089,10 +1195,14 @@ export default function CampaignsPage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block font-medium">
+                  <label
+                    htmlFor="edit-campaign-target-agents"
+                    className="mb-1 block font-medium"
+                  >
                     Agent ids (comma)
                   </label>
                   <Input
+                    id="edit-campaign-target-agents"
                     value={editTarget.targetAgents?.join(", ") || ""}
                     onChange={(e) =>
                       setEditField(

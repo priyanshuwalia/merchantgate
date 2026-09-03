@@ -76,9 +76,11 @@ const BREAKER_COOLDOWN_MS = 60_000;
 const breakerState = globalThis as unknown as {
   __personaBreaker?: { failures: number; disabledUntil: number };
 };
-const breaker =
-  breakerState.__personaBreaker ||
-  (breakerState.__personaBreaker = { failures: 0, disabledUntil: 0 });
+const breaker = breakerState.__personaBreaker ?? {
+  failures: 0,
+  disabledUntil: 0,
+};
+breakerState.__personaBreaker = breaker;
 
 export function isPersonaDisabled(): boolean {
   return Date.now() < breaker.disabledUntil;
@@ -124,11 +126,14 @@ export async function generateExchange(
       `Merchant offers upsell combo: "${best.title}" — items: ${best.items.map((i) => `${i.title} ₹${i.priceInr.toFixed(2)}`).join(", ")} — add-on total ₹${best.addedTotalInr.toFixed(2)}${best.savingsInr > 0 ? `, saves ₹${best.savingsInr.toFixed(2)}` : ""}`,
     );
     if (ctx.upsellCartSubtotalMinor)
-      facts.push(`Current cart subtotal: ${money(ctx.upsellCartSubtotalMinor)}`);
+      facts.push(
+        `Current cart subtotal: ${money(ctx.upsellCartSubtotalMinor)}`,
+      );
   }
 
-  const prompt = ctx.step === "upsell_suggestion"
-    ? `Protocol step: ${ctx.step}
+  const prompt =
+    ctx.step === "upsell_suggestion"
+      ? `Protocol step: ${ctx.step}
 ${facts.join("\n")}
 
 Write ONE short line the merchant agent says to suggest the combo deal (mention specific products and savings), then ONE short line the buyer agent says to present it to the human user and ask if they want to add the items. Output exactly this fenced format:
@@ -137,7 +142,7 @@ Write ONE short line the merchant agent says to suggest the combo deal (mention 
 MERCHANT: <merchant line suggesting the combo>
 BUYER: <buyer line asking the user>
 \`\`\``
-    : `Protocol step: ${ctx.step}
+      : `Protocol step: ${ctx.step}
 ${facts.join("\n")}
 
 Write ONE short line the buyer agent says at this step, then ONE short line the merchant agent replies with. Output exactly this fenced format:

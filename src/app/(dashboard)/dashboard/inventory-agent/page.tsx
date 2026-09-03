@@ -476,44 +476,48 @@ export default function InventoryAgentPage() {
             </CardHeader>
             <CardContent className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
-                <label className="space-y-1">
+                <label htmlFor="bulk-discount-pct" className="space-y-1">
                   <span className="text-xs font-medium text-text-muted">
                     Bulk discount %
                   </span>
                   <Input
+                    id="bulk-discount-pct"
                     value={editBulkPct}
                     onChange={(e) => setEditBulkPct(e.target.value)}
                     type="number"
                     className="h-8 font-mono"
                   />
                 </label>
-                <label className="space-y-1">
+                <label htmlFor="min-qty" className="space-y-1">
                   <span className="text-xs font-medium text-text-muted">
                     Minimum qty
                   </span>
                   <Input
+                    id="min-qty"
                     value={editMinQty}
                     onChange={(e) => setEditMinQty(e.target.value)}
                     type="number"
                     className="h-8 font-mono"
                   />
                 </label>
-                <label className="space-y-1">
+                <label htmlFor="max-ceiling-pct" className="space-y-1">
                   <span className="text-xs font-medium text-text-muted">
                     Max ceiling %
                   </span>
                   <Input
+                    id="max-ceiling-pct"
                     value={editMaxPct}
                     onChange={(e) => setEditMaxPct(e.target.value)}
                     type="number"
                     className="h-8 font-mono"
                   />
                 </label>
-                <label className="space-y-1">
+                <label htmlFor="approval-above-pct" className="space-y-1">
                   <span className="text-xs font-medium text-text-muted">
                     Approval above %
                   </span>
                   <Input
+                    id="approval-above-pct"
                     value={editApprovalPct}
                     onChange={(e) => setEditApprovalPct(e.target.value)}
                     type="number"

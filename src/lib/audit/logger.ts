@@ -1,4 +1,3 @@
-import { sql } from "drizzle-orm";
 import { auditEvents, db } from "@/db";
 import { generateCanonicalDigest } from "@/lib/crypto/canonical";
 

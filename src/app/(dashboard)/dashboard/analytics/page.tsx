@@ -47,6 +47,7 @@ function DonutChart({
 
   return (
     <svg viewBox="0 0 160 160" className="h-40 w-40 -rotate-90">
+      <title>Revenue Attribution Donut Chart</title>
       <circle
         cx="80"
         cy="80"
@@ -118,8 +119,14 @@ function FunnelStage({
   );
 }
 
+interface AnalyticsStats {
+  attribution: AttributionData;
+  funnel: FunnelData;
+  topSkus: TopSku[];
+}
+
 export default function AnalyticsPage() {
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<AnalyticsStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

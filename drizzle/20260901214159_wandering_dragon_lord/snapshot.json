@@ -2,9 +2,7 @@
   "version": "8",
   "dialect": "postgres",
   "id": "d0b06b73-16d4-4048-b4a4-e18b5a98d914",
-  "prevIds": [
-    "00000000-0000-0000-0000-000000000000"
-  ],
+  "prevIds": ["00000000-0000-0000-0000-000000000000"],
   "ddl": [
     {
       "isRlsEnabled": false,
@@ -1835,14 +1833,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "intent_mandate_id"
-      ],
+      "columns": ["intent_mandate_id"],
       "schemaTo": "public",
       "tableTo": "intent_mandates",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "budget_reservations_intent_mandate_id_intent_mandates_id_fkey",
@@ -1852,14 +1846,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "intent_mandate_id"
-      ],
+      "columns": ["intent_mandate_id"],
       "schemaTo": "public",
       "tableTo": "intent_mandates",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "cart_mandates_intent_mandate_id_intent_mandates_id_fkey",
@@ -1869,14 +1859,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "merchant_id"
-      ],
+      "columns": ["merchant_id"],
       "schemaTo": "public",
       "tableTo": "merchants",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "cart_mandates_merchant_id_merchants_id_fkey",
@@ -1886,14 +1872,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "agent_id"
-      ],
+      "columns": ["agent_id"],
       "schemaTo": "public",
       "tableTo": "agents",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "intent_mandates_agent_id_agents_id_fkey",
@@ -1903,14 +1885,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "cart_mandate_id"
-      ],
+      "columns": ["cart_mandate_id"],
       "schemaTo": "public",
       "tableTo": "cart_mandates",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "payment_actions_cart_mandate_id_cart_mandates_id_fkey",
@@ -1920,14 +1898,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "decision_id"
-      ],
+      "columns": ["decision_id"],
       "schemaTo": "public",
       "tableTo": "policy_decisions",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "payment_actions_decision_id_policy_decisions_id_fkey",
@@ -1937,14 +1911,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "budget_reservation_id"
-      ],
+      "columns": ["budget_reservation_id"],
       "schemaTo": "public",
       "tableTo": "budget_reservations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "payment_actions_3dHOIbe97Frv_fkey",
@@ -1954,14 +1924,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "intent_mandate_id"
-      ],
+      "columns": ["intent_mandate_id"],
       "schemaTo": "public",
       "tableTo": "intent_mandates",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "policy_decisions_intent_mandate_id_intent_mandates_id_fkey",
@@ -1971,14 +1937,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "cart_mandate_id"
-      ],
+      "columns": ["cart_mandate_id"],
       "schemaTo": "public",
       "tableTo": "cart_mandates",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "policy_decisions_cart_mandate_id_cart_mandates_id_fkey",
@@ -1988,14 +1950,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "merchant_id"
-      ],
+      "columns": ["merchant_id"],
       "schemaTo": "public",
       "tableTo": "merchants",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "products_merchant_id_merchants_id_fkey",
@@ -2005,14 +1963,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "payment_action_id"
-      ],
+      "columns": ["payment_action_id"],
       "schemaTo": "public",
       "tableTo": "payment_actions",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "refund_actions_payment_action_id_payment_actions_id_fkey",
@@ -2021,9 +1975,7 @@
       "table": "refund_actions"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "agents_pkey",
       "schema": "public",
@@ -2031,9 +1983,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "audit_events_pkey",
       "schema": "public",
@@ -2041,9 +1991,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "budget_reservations_pkey",
       "schema": "public",
@@ -2051,9 +1999,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "cart_mandates_pkey",
       "schema": "public",
@@ -2061,9 +2007,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "intent_mandates_pkey",
       "schema": "public",
@@ -2071,9 +2015,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "merchants_pkey",
       "schema": "public",
@@ -2081,9 +2023,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "payment_actions_pkey",
       "schema": "public",
@@ -2091,9 +2031,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "policy_decisions_pkey",
       "schema": "public",
@@ -2101,9 +2039,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "products_pkey",
       "schema": "public",
@@ -2111,9 +2047,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "refund_actions_pkey",
       "schema": "public",
@@ -2121,9 +2055,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "webhook_events_pkey",
       "schema": "public",
@@ -2132,9 +2064,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "cart_mandate_id"
-      ],
+      "columns": ["cart_mandate_id"],
       "nullsNotDistinct": false,
       "name": "idx_policy_active_unique",
       "entityType": "uniques",
@@ -2143,9 +2073,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "public_key"
-      ],
+      "columns": ["public_key"],
       "nullsNotDistinct": false,
       "name": "agents_public_key_key",
       "schema": "public",
@@ -2154,9 +2082,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "cart_mandate_id"
-      ],
+      "columns": ["cart_mandate_id"],
       "nullsNotDistinct": false,
       "name": "payment_actions_cart_mandate_id_key",
       "schema": "public",
@@ -2165,9 +2091,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "decision_id"
-      ],
+      "columns": ["decision_id"],
       "nullsNotDistinct": false,
       "name": "payment_actions_decision_id_key",
       "schema": "public",
@@ -2176,9 +2100,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "budget_reservation_id"
-      ],
+      "columns": ["budget_reservation_id"],
       "nullsNotDistinct": false,
       "name": "payment_actions_budget_reservation_id_key",
       "schema": "public",
@@ -2187,9 +2109,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "razorpay_order_id"
-      ],
+      "columns": ["razorpay_order_id"],
       "nullsNotDistinct": false,
       "name": "payment_actions_razorpay_order_id_key",
       "schema": "public",
@@ -2198,9 +2118,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "razorpay_payment_id"
-      ],
+      "columns": ["razorpay_payment_id"],
       "nullsNotDistinct": false,
       "name": "payment_actions_razorpay_payment_id_key",
       "schema": "public",
@@ -2209,9 +2127,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "variant_id"
-      ],
+      "columns": ["variant_id"],
       "nullsNotDistinct": false,
       "name": "products_variant_id_key",
       "schema": "public",
@@ -2220,9 +2136,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "razorpay_refund_id"
-      ],
+      "columns": ["razorpay_refund_id"],
       "nullsNotDistinct": false,
       "name": "refund_actions_razorpay_refund_id_key",
       "schema": "public",
@@ -2231,9 +2145,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "idempotency_key"
-      ],
+      "columns": ["idempotency_key"],
       "nullsNotDistinct": false,
       "name": "refund_actions_idempotency_key_key",
       "schema": "public",
@@ -2242,9 +2154,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "provider_event_id"
-      ],
+      "columns": ["provider_event_id"],
       "nullsNotDistinct": false,
       "name": "webhook_events_provider_event_id_key",
       "schema": "public",

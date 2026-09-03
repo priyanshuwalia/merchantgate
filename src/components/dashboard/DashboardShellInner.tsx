@@ -1,6 +1,5 @@
 "use client";
 
-import { Menu } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { TopNavbar } from "./TopNavbar";
 

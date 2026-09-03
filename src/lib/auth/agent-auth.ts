@@ -16,7 +16,7 @@
  * quote/settlement surface.
  */
 
-import crypto from "crypto";
+import crypto from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { agents, db } from "@/db";

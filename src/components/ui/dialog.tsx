@@ -49,6 +49,7 @@ function DialogContent({
         {...props}
       >
         <button
+          type="button"
           onClick={() => onOpenChange(false)}
           className="absolute right-4 top-4 rounded-md p-1 text-text-muted opacity-80 transition-opacity hover:bg-muted hover:opacity-100"
         >

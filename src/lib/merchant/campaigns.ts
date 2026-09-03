@@ -578,7 +578,9 @@ export async function recordCampaignSpend(
   const byId = new Map(clean.map((s) => [s.campaignId, s.discountMinor]));
   const updated = existing.map((c) => {
     if (!byId.has(c.id)) return c;
-    return { ...c, spentMinor: (c.spentMinor ?? 0) + byId.get(c.id)! };
+    const spend = byId.get(c.id);
+    if (spend === undefined) return c;
+    return { ...c, spentMinor: (c.spentMinor ?? 0) + spend };
   });
 
   await saveCampaigns(updated);

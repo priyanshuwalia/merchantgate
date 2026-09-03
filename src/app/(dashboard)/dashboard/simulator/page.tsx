@@ -57,6 +57,21 @@ interface ConversationLine extends SimulationCommunication {
   stepLabel: string;
 }
 
+interface RazorpayPaymentResponse {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+}
+
+interface RazorpayCheckoutInstance {
+  open: () => void;
+  on: (event: string, handler: (response: unknown) => void) => void;
+}
+
+type RazorpayCtor = new (
+  options: Record<string, unknown>,
+) => RazorpayCheckoutInstance;
+
 interface StepUpInfo {
   summary: string;
   cartMandateId?: string;
@@ -517,8 +532,11 @@ export default function SimulatorPage() {
         // SURGE_PRICING_ACTIVE reason (either on the policy evaluation or the
         // confirm response) means the in-flight quote was re-priced +15%.
         const surged = data.events.some((e) => {
-          const payload: any = e.responsePayload || {};
-          const r = payload.policyEvaluation || payload;
+          const payload = (e.responsePayload || {}) as Record<string, unknown>;
+          const r = (payload.policyEvaluation || payload) as Record<
+            string,
+            unknown
+          >;
           return (
             Array.isArray(r?.reasonCodes) &&
             r.reasonCodes.includes("SURGE_PRICING_ACTIVE")
@@ -540,14 +558,14 @@ export default function SimulatorPage() {
 
   /** Load the Razorpay checkout SDK (test mode) once, then open the modal and
    * verify the resulting payment signature server-side before marking paid. */
-  const loadRazorpayCheckout = (): Promise<any> => {
+  const loadRazorpayCheckout = (): Promise<RazorpayCtor | null> => {
     return new Promise((resolve) => {
-      const w = window as any;
+      const w = window as unknown as { Razorpay?: RazorpayCtor };
       if (w.Razorpay) return resolve(w.Razorpay);
       const script = document.createElement("script");
       script.src = "https://checkout.razorpay.com/v1/checkout.js";
       script.async = true;
-      script.onload = () => resolve(w.Razorpay);
+      script.onload = () => resolve(w.Razorpay ?? null);
       script.onerror = () => resolve(null);
       document.body.appendChild(script);
     });
@@ -574,7 +592,7 @@ export default function SimulatorPage() {
         name: "AgentPay Merchant — Test Checkout",
         description: `AgentPay order ${orderId}`,
         order_id: orderId,
-        handler: async (response: any) => {
+        handler: async (response: RazorpayPaymentResponse) => {
           // Server-side verification: never trust the client that payment
           // succeeded; re-verify the Razorpay signature here.
           const verify = await fetch("/v1/agent/payments/verify", {
@@ -610,9 +628,10 @@ export default function SimulatorPage() {
       };
 
       const rzp = new RazorpayCtor(options);
-      rzp.on("payment.failed", (res: any) => {
+      rzp.on("payment.failed", (res: unknown) => {
+        const err = res as { error?: { description?: string } } | undefined;
         setPaymentError(
-          res?.error?.description || "Payment failed on the Razorpay side.",
+          err?.error?.description || "Payment failed on the Razorpay side.",
         );
       });
       rzp.open();
@@ -1110,11 +1129,15 @@ export default function SimulatorPage() {
                   )}
                 </div>
 
-                <label className="block space-y-1">
+                <label
+                  htmlFor="custom-search-query"
+                  className="block space-y-1"
+                >
                   <span className="font-medium text-text-muted text-[11px]">
                     Product
                   </span>
                   <Input
+                    id="custom-search-query"
                     value={customSearchQuery}
                     onChange={(e) => setCustomSearchQuery(e.target.value)}
                     placeholder="keyboard, mouse..."
@@ -1122,11 +1145,12 @@ export default function SimulatorPage() {
                   />
                 </label>
 
-                <label className="block space-y-1">
+                <label htmlFor="custom-budget-inr" className="block space-y-1">
                   <span className="font-medium text-text-muted text-[11px]">
                     Budget (₹)
                   </span>
                   <Input
+                    id="custom-budget-inr"
                     type="number"
                     value={customBudgetInr || ""}
                     onChange={(e) =>
@@ -1689,8 +1713,14 @@ export default function SimulatorPage() {
           <div className="space-y-3 pt-1 text-xs">
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block font-medium mb-1">Provider</label>
+                <label
+                  htmlFor="buyer-llm-provider"
+                  className="block font-medium mb-1"
+                >
+                  Provider
+                </label>
                 <select
+                  id="buyer-llm-provider"
                   value={buyerLlmProvider}
                   onChange={(e) => setBuyerLlmProvider(e.target.value)}
                   className="h-9 w-full px-2 rounded-md bg-white border border-input text-xs focus:outline-none focus:border-primary"
@@ -1703,8 +1733,14 @@ export default function SimulatorPage() {
                 </select>
               </div>
               <div>
-                <label className="block font-medium mb-1">Model</label>
+                <label
+                  htmlFor="buyer-llm-model"
+                  className="block font-medium mb-1"
+                >
+                  Model
+                </label>
                 <Input
+                  id="buyer-llm-model"
                   value={buyerLlmModel}
                   onChange={(e) => setBuyerLlmModel(e.target.value)}
                   placeholder={
@@ -1719,8 +1755,14 @@ export default function SimulatorPage() {
 
             {buyerLlmProvider === "custom" && (
               <div>
-                <label className="block font-medium mb-1">Base URL</label>
+                <label
+                  htmlFor="buyer-llm-base-url"
+                  className="block font-medium mb-1"
+                >
+                  Base URL
+                </label>
                 <Input
+                  id="buyer-llm-base-url"
                   value={buyerLlmBaseUrl}
                   onChange={(e) => setBuyerLlmBaseUrl(e.target.value)}
                   placeholder="https://your-host/v1/chat/completions"
@@ -1793,8 +1835,14 @@ export default function SimulatorPage() {
           <div className="space-y-3 pt-1 text-xs">
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block font-medium mb-1">Provider</label>
+                <label
+                  htmlFor="merchant-llm-provider"
+                  className="block font-medium mb-1"
+                >
+                  Provider
+                </label>
                 <select
+                  id="merchant-llm-provider"
                   value={mProvider}
                   onChange={(e) => setMProvider(e.target.value)}
                   className="h-9 w-full px-2 rounded-md bg-white border border-input text-xs focus:outline-none focus:border-primary"
@@ -1807,8 +1855,14 @@ export default function SimulatorPage() {
                 </select>
               </div>
               <div>
-                <label className="block font-medium mb-1">Model</label>
+                <label
+                  htmlFor="merchant-llm-model"
+                  className="block font-medium mb-1"
+                >
+                  Model
+                </label>
                 <Input
+                  id="merchant-llm-model"
                   value={mModel}
                   onChange={(e) => setMModel(e.target.value)}
                   placeholder={
@@ -1823,8 +1877,14 @@ export default function SimulatorPage() {
 
             {mProvider === "custom" && (
               <div>
-                <label className="block font-medium mb-1">Base URL</label>
+                <label
+                  htmlFor="merchant-llm-base-url"
+                  className="block font-medium mb-1"
+                >
+                  Base URL
+                </label>
                 <Input
+                  id="merchant-llm-base-url"
                   value={mBaseUrl}
                   onChange={(e) => setMBaseUrl(e.target.value)}
                   placeholder="https://your-host/v1/chat/completions"

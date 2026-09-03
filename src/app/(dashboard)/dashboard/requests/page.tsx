@@ -47,11 +47,53 @@ import {
 } from "@/lib/broadcast/agentpay-bus";
 import { formatMinorUnits } from "@/lib/utils";
 
+interface ProposalItem {
+  title?: string;
+  variantId?: string;
+  quantity?: number;
+  lineAmountMinor?: number;
+}
+
+interface ProposalPolicyDecision {
+  decision?: string;
+  reasonCodes?: string[];
+  decisionJSON?: Record<string, unknown>;
+}
+
+interface Proposal {
+  id: string;
+  intent_mandate_id: string;
+  items?: ProposalItem[];
+  total_minor: number;
+  currency: string;
+  status: string;
+  content_hash?: string;
+  quote_expires_at: string;
+  policyDecision?: ProposalPolicyDecision;
+}
+
+interface RazorpayPaymentResponse {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+}
+
+interface RazorpayCheckoutInstance {
+  open: () => void;
+  on: (event: string, handler: (response: unknown) => void) => void;
+}
+
+type RazorpayCtor = new (
+  options: Record<string, unknown>,
+) => RazorpayCheckoutInstance;
+
 export default function AgentRequestsPage() {
-  const [proposals, setProposals] = useState<any[]>([]);
+  const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
-  const [selectedProposal, setSelectedProposal] = useState<any>(null);
+  const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(
+    null,
+  );
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -90,7 +132,6 @@ export default function AgentRequestsPage() {
   // focus/visibility, and whenever the merchant console broadcasts a control
   // change (e.g. Surge Pricing re-flagging in-flight transactions from the
   // Overview dashboard). Actions in this page refetch explicitly.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: fetchRequests is deliberately refreshed through the ref.
   useEffect(() => {
     const load = () => fetchRequestsRef.current();
     load();
@@ -151,14 +192,14 @@ export default function AgentRequestsPage() {
   };
 
   /** Load the Razorpay checkout SDK (test mode) once, then open the modal. */
-  const loadRazorpayCheckout = (): Promise<any> => {
+  const loadRazorpayCheckout = (): Promise<RazorpayCtor | null> => {
     return new Promise((resolve) => {
-      const w = window as any;
+      const w = window as unknown as { Razorpay?: RazorpayCtor };
       if (w.Razorpay) return resolve(w.Razorpay);
       const script = document.createElement("script");
       script.src = "https://checkout.razorpay.com/v1/checkout.js";
       script.async = true;
-      script.onload = () => resolve(w.Razorpay);
+      script.onload = () => resolve(w.Razorpay ?? null);
       script.onerror = () => resolve(null);
       document.body.appendChild(script);
     });
@@ -184,7 +225,7 @@ export default function AgentRequestsPage() {
         name: "AgentPay Merchant — Test Checkout",
         description: `AgentPay order ${orderId}`,
         order_id: orderId,
-        handler: async (response: any) => {
+        handler: async (response: RazorpayPaymentResponse) => {
           const verify = await fetch("/v1/agent/payments/verify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -209,9 +250,10 @@ export default function AgentRequestsPage() {
         },
       };
       const rzp = new RazorpayCtor(options);
-      rzp.on("payment.failed", (res: any) => {
+      rzp.on("payment.failed", (res: unknown) => {
+        const err = res as { error?: { description?: string } } | undefined;
         setPayError(
-          res?.error?.description || "Payment failed on the Razorpay side.",
+          err?.error?.description || "Payment failed on the Razorpay side.",
         );
       });
       rzp.open();
@@ -244,7 +286,7 @@ export default function AgentRequestsPage() {
 
   // Did Surge Pricing drive this proposal's STEP_UP? Reads the decision's own
   // metadata (surge_reason / surge_multiplier) in addition to the reason codes.
-  const isSurgeFlagged = (p: any): boolean => {
+  const isSurgeFlagged = (p: Proposal): boolean => {
     if (reasonCodesFor(p)?.includes(SURGE_REASON)) return true;
     const dj = (p?.policyDecision?.decisionJSON || {}) as Record<
       string,
@@ -253,7 +295,7 @@ export default function AgentRequestsPage() {
     return dj.surge_reason === SURGE_REASON;
   };
 
-  const surgeMultiplierFor = (p: any): number | null => {
+  const surgeMultiplierFor = (p: Proposal): number | null => {
     const dj = (p?.policyDecision?.decisionJSON || {}) as Record<
       string,
       unknown
@@ -262,14 +304,14 @@ export default function AgentRequestsPage() {
     return Number.isFinite(m) && m > 0 ? m : null;
   };
 
-  const reasonCodesFor = (p: any): string[] | null => {
+  const reasonCodesFor = (p: Proposal): string[] | null => {
     const codes = p?.policyDecision?.reasonCodes;
     return Array.isArray(codes) && codes.length > 0
       ? (codes as string[])
       : null;
   };
 
-  const ReasonPills = ({ p }: { p: any }) => {
+  const ReasonPills = ({ p }: { p: Proposal }) => {
     const codes = reasonCodesFor(p);
     if (!codes || codes.length === 0) return null;
     return (
@@ -398,7 +440,7 @@ export default function AgentRequestsPage() {
                             {items.length} item(s):
                           </span>{" "}
                           {items
-                            .map((i: any) => i.title || i.variantId)
+                            .map((i: ProposalItem) => i.title || i.variantId)
                             .join(", ")}
                         </TableCell>
                         <TableCell className="font-mono font-semibold text-foreground">
@@ -534,9 +576,9 @@ export default function AgentRequestsPage() {
                   </span>
                   <div className="mt-2 space-y-2">
                     {(selectedProposal.items || []).map(
-                      (item: any, idx: number) => (
+                      (item: ProposalItem, idx: number) => (
                         <div
-                          key={idx}
+                          key={item.variantId ?? idx}
                           className="flex items-center justify-between text-xs py-1 border-b border-border last:border-none"
                         >
                           <div>
@@ -549,7 +591,7 @@ export default function AgentRequestsPage() {
                           </div>
                           <span className="font-mono text-foreground font-medium">
                             {formatMinorUnits(
-                              item.lineAmountMinor,
+                              item.lineAmountMinor ?? 0,
                               selectedProposal.currency,
                             )}
                           </span>

@@ -1,7 +1,6 @@
 import "dotenv/config";
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
-import * as schema from "./schema";
 
 // Security: the database connection string must come from the environment. It
 // is NEVER hardcoded in source. If it is missing we fail fast rather than

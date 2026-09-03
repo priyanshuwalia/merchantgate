@@ -7,7 +7,7 @@ import {
   RefreshCw,
   RotateCcw,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Header } from "@/components/dashboard/Header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,23 +37,47 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { formatMinorUnits } from "@/lib/utils";
 
+interface RazorpayCheckout {
+  open: () => void;
+  on?: (...args: unknown[]) => void;
+}
+
 declare global {
   interface Window {
-    Razorpay?: any;
+    Razorpay?: new (options: Record<string, unknown>) => RazorpayCheckout;
   }
 }
 
+interface Order {
+  id: string;
+  cart_mandate_id: string;
+  amount_minor: number;
+  currency: string;
+  razorpay_order_id?: string;
+  status: string;
+  created_at: string;
+}
+
+interface RazorpayPaymentResponse {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+}
+
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refundModalOpen, setRefundModalOpen] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [refundReason, setRefundReason] = useState("");
   const [processing, setProcessing] = useState(false);
   const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
 
-  const fetchOrders = async () => {
+  // No background polling. The list refreshes on mount, when the tab regains
+  // focus/visibility, and whenever the merchant console broadcasts a control
+  // commit — actions in this page refetch explicitly.
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -69,11 +93,11 @@ export default function OrdersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [fetchOrders]);
 
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
@@ -88,7 +112,7 @@ export default function OrdersPage() {
     });
   };
 
-  const handlePayWithRazorpay = async (ord: any) => {
+  const handlePayWithRazorpay = async (ord: Order) => {
     try {
       setPayingOrderId(ord.id);
       const scriptLoaded = await loadRazorpayScript();
@@ -109,7 +133,7 @@ export default function OrdersPage() {
         name: "AgentPay Merchant",
         description: `Order for Cart Mandate: ${ord.cart_mandate_id}`,
         order_id: ord.razorpay_order_id,
-        handler: async (response: any) => {
+        handler: async (response: RazorpayPaymentResponse) => {
           console.log("[Razorpay Client] Payment success response:", response);
           // The server cryptographically verifies the payment signature before
           // marking the order settled — the browser never confirms a payment.
@@ -143,7 +167,11 @@ export default function OrdersPage() {
         },
       };
 
-      const paymentObject = new window.Razorpay(options);
+      const RazorpayCtor = window.Razorpay;
+      if (!RazorpayCtor) {
+        throw new Error("Razorpay SDK did not initialize");
+      }
+      const paymentObject = new RazorpayCtor(options);
       paymentObject.open();
     } catch (err) {
       console.error("Razorpay popup error:", err);
@@ -368,10 +396,14 @@ export default function OrdersPage() {
 
               <form onSubmit={handleRefund} className="space-y-4 text-xs">
                 <div>
-                  <label className="block text-foreground font-medium mb-1">
+                  <label
+                    htmlFor="refund-reason"
+                    className="block text-foreground font-medium mb-1"
+                  >
                     Refund Reason
                   </label>
                   <Textarea
+                    id="refund-reason"
                     rows={3}
                     required
                     value={refundReason}

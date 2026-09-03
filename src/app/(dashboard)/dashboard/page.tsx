@@ -46,10 +46,59 @@ import {
 } from "@/lib/broadcast/agentpay-bus";
 import { formatMinorUnits } from "@/lib/utils";
 
+interface DashboardMetrics {
+  totalGmvMinor: number;
+  totalTransactions: number;
+  completedOrders: number;
+  activeProposals: number;
+  conversionRate: number;
+  stepUpRequests: number;
+  allowedRequests: number;
+  deniedRequests: number;
+  productsCount: number;
+  totalStock: number;
+}
+
+interface ProposalItem {
+  title?: string;
+  variantId?: string;
+}
+
+interface Proposal {
+  id: string;
+  request_id?: string;
+  items?: ProposalItem[];
+  total_minor: number;
+  currency: string;
+  status: string;
+  content_hash?: string;
+}
+
+interface AuditEvent {
+  id: string;
+  event_type: string;
+  actor_type: string;
+  actor_id: string;
+  trace_id: string;
+  explanation: string;
+  timestamp: string;
+}
+
+interface DashboardStats {
+  metrics: DashboardMetrics;
+  recentProposals: Proposal[];
+  recentAudit: AuditEvent[];
+  merchant?: {
+    config?: {
+      aiSalesEnabled?: boolean;
+    };
+  };
+}
+
 export default function DashboardOverview() {
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [_refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [approving, setApproving] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -253,6 +302,7 @@ export default function DashboardOverview() {
                 AI Sales
               </span>
               <button
+                type="button"
                 role="switch"
                 aria-checked={isEnabled}
                 disabled={isLoading}
@@ -677,97 +727,104 @@ export default function DashboardOverview() {
         <LiveActivityPanel />
 
         {/* Pending Checkout Approvals — Merchant can approve/reject STEP_UP proposals inline */}
-        {stats?.recentProposals?.filter((p: any) => p.status === "flagged")
-          .length > 0 && (
+        {(stats?.recentProposals?.filter(
+          (p: Proposal) => p.status === "flagged",
+        ).length ?? 0) > 0 && (
           <Card className="border-[#ffb822]/35 bg-[#fffaf0]">
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-[#7d5500]">
-                  <AlertTriangle className="w-4 h-4" />
-                  Pending Checkout Approvals
-                </CardTitle>
-                <CardDescription>
-                  These AI agent checkout proposals require your manual
-                  authorization (STEP_UP policy triggered).
-                </CardDescription>
-              </div>
-              <Badge variant="warning" className="animate-pulse">
-                {
-                  stats.recentProposals.filter(
-                    (p: any) => p.status === "flagged",
-                  ).length
-                }{" "}
-                pending
-              </Badge>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Cart Mandate ID</TableHead>
-                    <TableHead>Items</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Snapshot Hash</TableHead>
-                    <TableHead className="text-right">
-                      Merchant Action
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {stats.recentProposals
-                    .filter((p: any) => p.status === "flagged")
-                    .map((p: any) => (
-                      <TableRow key={p.id}>
-                        <TableCell className="font-mono font-semibold text-[#946400] text-xs">
-                          {p.id}
-                        </TableCell>
-                        <TableCell className="text-sm text-text-secondary">
-                          {Array.isArray(p.items)
-                            ? p.items
-                                .map((i: any) => i.title || i.variantId)
-                                .join(", ")
-                            : "—"}
-                        </TableCell>
-                        <TableCell className="font-mono font-bold text-foreground">
-                          {formatMinorUnits(p.total_minor, p.currency)}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs text-text-muted max-w-35 truncate">
-                          {p.content_hash?.slice(0, 16)}…
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              disabled={approving === p.id}
-                              onClick={() =>
-                                handleApproveProposal(p.id, "reject")
-                              }
-                              className="gap-1 h-7 text-xs"
-                            >
-                              <X className="w-3 h-3" />
-                              Reject
-                            </Button>
-                            <Button
-                              size="sm"
-                              disabled={approving === p.id}
-                              onClick={() =>
-                                handleApproveProposal(p.id, "approve")
-                              }
-                              className="gap-1 h-7 text-xs bg-[#00b874] hover:bg-[#00a568] text-white"
-                            >
-                              <Check className="w-3 h-3" />
-                              {approving === p.id
-                                ? "Processing…"
-                                : "Approve Checkout"}
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                </TableBody>
-              </Table>
-            </CardContent>
+            {(() => {
+              const flagged =
+                stats?.recentProposals?.filter(
+                  (p: Proposal) => p.status === "flagged",
+                ) ?? [];
+              return (
+                <>
+                  <CardHeader className="flex flex-row items-center justify-between pb-3">
+                    <div>
+                      <CardTitle className="flex items-center gap-2 text-[#7d5500]">
+                        <AlertTriangle className="w-4 h-4" />
+                        Pending Checkout Approvals
+                      </CardTitle>
+                      <CardDescription>
+                        These AI agent checkout proposals require your manual
+                        authorization (STEP_UP policy triggered).
+                      </CardDescription>
+                    </div>
+                    <Badge variant="warning" className="animate-pulse">
+                      {flagged.length} pending
+                    </Badge>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Cart Mandate ID</TableHead>
+                          <TableHead>Items</TableHead>
+                          <TableHead>Total</TableHead>
+                          <TableHead>Snapshot Hash</TableHead>
+                          <TableHead className="text-right">
+                            Merchant Action
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {flagged.map((p: Proposal) => (
+                          <TableRow key={p.id}>
+                            <TableCell className="font-mono font-semibold text-[#946400] text-xs">
+                              {p.id}
+                            </TableCell>
+                            <TableCell className="text-sm text-text-secondary">
+                              {Array.isArray(p.items)
+                                ? p.items
+                                    .map(
+                                      (i: ProposalItem) =>
+                                        i.title || i.variantId,
+                                    )
+                                    .join(", ")
+                                : "—"}
+                            </TableCell>
+                            <TableCell className="font-mono font-bold text-foreground">
+                              {formatMinorUnits(p.total_minor, p.currency)}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs text-text-muted max-w-35 truncate">
+                              {p.content_hash?.slice(0, 16)}…
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  disabled={approving === p.id}
+                                  onClick={() =>
+                                    handleApproveProposal(p.id, "reject")
+                                  }
+                                  className="gap-1 h-7 text-xs"
+                                >
+                                  <X className="w-3 h-3" />
+                                  Reject
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  disabled={approving === p.id}
+                                  onClick={() =>
+                                    handleApproveProposal(p.id, "approve")
+                                  }
+                                  className="gap-1 h-7 text-xs bg-[#00b874] hover:bg-[#00a568] text-white"
+                                >
+                                  <Check className="w-3 h-3" />
+                                  {approving === p.id
+                                    ? "Processing…"
+                                    : "Approve Checkout"}
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </>
+              );
+            })()}
           </Card>
         )}
 
@@ -798,7 +855,7 @@ export default function DashboardOverview() {
               </TableHeader>
               <TableBody>
                 {stats?.recentAudit && stats.recentAudit.length > 0 ? (
-                  stats.recentAudit.slice(0, 8).map((evt: any) => (
+                  stats.recentAudit.slice(0, 8).map((evt: AuditEvent) => (
                     <TableRow key={evt.id}>
                       <TableCell className="font-mono font-medium text-primary">
                         {evt.event_type}

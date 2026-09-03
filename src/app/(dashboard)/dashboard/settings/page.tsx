@@ -13,13 +13,7 @@ import { useEffect, useState } from "react";
 import { Header } from "@/components/dashboard/Header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 const PROVIDERS = [
@@ -43,9 +37,9 @@ const PROVIDERS = [
 ];
 
 export default function SettingsPage() {
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
+  const [_copied, setCopied] = useState<string | null>(null);
 
   const [merchantName, setMerchantName] = useState("Nimbus Gear & Electronics");
   const [currency, setCurrency] = useState("INR");
@@ -187,11 +181,15 @@ export default function SettingsPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-foreground font-medium mb-1">
+                <label
+                  htmlFor="merchant-id"
+                  className="block text-foreground font-medium mb-1"
+                >
                   Merchant ID (Immutable)
                 </label>
                 <div className="flex items-center gap-2">
                   <Input
+                    id="merchant-id"
                     disabled
                     value="mch_nimbus_gear_001"
                     className="font-mono text-muted-foreground bg-muted"
@@ -210,10 +208,14 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-foreground font-medium mb-1">
+                <label
+                  htmlFor="store-name"
+                  className="block text-foreground font-medium mb-1"
+                >
                   Store / Business Name
                 </label>
                 <Input
+                  id="store-name"
                   required
                   value={merchantName}
                   onChange={(e) => setMerchantName(e.target.value)}
@@ -222,10 +224,14 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <label className="block text-foreground font-medium mb-1">
+              <label
+                htmlFor="settlement-currency"
+                className="block text-foreground font-medium mb-1"
+              >
                 Default Settlement Currency
               </label>
               <select
+                id="settlement-currency"
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
                 className="h-9 w-48 px-3 rounded-lg bg-white border border-input text-xs text-foreground font-mono focus:outline-none focus:border-primary focus:shadow-[0_0_0_3px_rgba(0,102,255,0.1)]"
@@ -261,10 +267,14 @@ export default function SettingsPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-foreground font-medium mb-1">
+                <label
+                  htmlFor="ai-provider"
+                  className="block text-foreground font-medium mb-1"
+                >
                   Provider
                 </label>
                 <select
+                  id="ai-provider"
                   value={aiProvider}
                   onChange={(e) => setAiProvider(e.target.value)}
                   className="h-9 w-full px-3 rounded-md bg-white border border-input text-sm text-foreground focus:outline-none focus:border-primary focus:shadow-[0_0_0_3px_rgba(0,102,255,0.1)]"
@@ -281,10 +291,14 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-foreground font-medium mb-1">
+                <label
+                  htmlFor="ai-model"
+                  className="block text-foreground font-medium mb-1"
+                >
                   Model Name / Slug
                 </label>
                 <Input
+                  id="ai-model"
                   placeholder={
                     aiProvider === "openrouter"
                       ? "e.g. openai/gpt-4o-mini"
@@ -301,7 +315,10 @@ export default function SettingsPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="flex items-center gap-1.5 text-foreground font-medium mb-1">
+                <label
+                  htmlFor="ai-api-key"
+                  className="flex items-center gap-1.5 text-foreground font-medium mb-1"
+                >
                   <KeyRound className="w-3.5 h-3.5 text-text-muted" />
                   API Key{" "}
                   {savedAi?.apiKeyMasked && (
@@ -311,6 +328,7 @@ export default function SettingsPage() {
                   )}
                 </label>
                 <Input
+                  id="ai-api-key"
                   type="password"
                   placeholder={
                     savedAi?.hasApiKey
@@ -328,7 +346,10 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-foreground font-medium mb-1">
+                <label
+                  htmlFor="ai-base-url"
+                  className="block text-foreground font-medium mb-1"
+                >
                   Custom Base URL{" "}
                   {aiProvider !== "custom" && (
                     <span className="font-normal text-text-muted">
@@ -337,6 +358,7 @@ export default function SettingsPage() {
                   )}
                 </label>
                 <Input
+                  id="ai-base-url"
                   placeholder="https://your-host/v1/chat/completions"
                   value={aiBaseUrl}
                   onChange={(e) => setAiBaseUrl(e.target.value)}
@@ -397,10 +419,14 @@ export default function SettingsPage() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-foreground font-medium mb-1">
+                <label
+                  htmlFor="razorpay-key-id"
+                  className="block text-foreground font-medium mb-1"
+                >
                   Razorpay Key ID
                 </label>
                 <Input
+                  id="razorpay-key-id"
                   placeholder="rzp_test_..."
                   value={razorpayKeyId}
                   onChange={(e) => setRazorpayKeyId(e.target.value)}
@@ -409,10 +435,14 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-foreground font-medium mb-1">
+                <label
+                  htmlFor="webhook-url"
+                  className="block text-foreground font-medium mb-1"
+                >
                   Webhook Receiver URL
                 </label>
                 <Input
+                  id="webhook-url"
                   value={webhookUrl}
                   onChange={(e) => setWebhookUrl(e.target.value)}
                   className="font-mono"

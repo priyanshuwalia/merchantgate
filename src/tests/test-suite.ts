@@ -308,7 +308,7 @@ async function runTests() {
   );
 
   // Test 5.3: Cryptographic HMAC Webhook Signature Verification
-  const crypto = await import("crypto");
+  const crypto = await import("node:crypto");
   const secret = "test_webhook_secret_12345";
   const webhookBody = JSON.stringify({
     event: "payment.captured",
@@ -334,8 +334,11 @@ async function runTests() {
   );
 
   // Test 5.4: Surge Pricing Simulation Slippage Trigger
-  const { setSurgePricing, isSurgePricingActive, getSurgeStatus } =
-    await import("../lib/merchant/surge");
+  const {
+    setSurgePricing,
+    isSurgePricingActive,
+    getSurgeStatus: _getSurgeStatus,
+  } = await import("../lib/merchant/surge");
   setSurgePricing(true, 60);
   assert(
     isSurgePricingActive(),

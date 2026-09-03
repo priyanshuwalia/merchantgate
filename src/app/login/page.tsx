@@ -52,8 +52,11 @@ export default function LoginPage() {
           MerchantGate — AI-Native Merchant Platform
         </p>
 
-        <label className="mt-6 block text-sm text-white/70">Password</label>
+        <label htmlFor="password" className="mt-6 block text-sm text-white/70">
+          Password
+        </label>
         <input
+          id="password"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}

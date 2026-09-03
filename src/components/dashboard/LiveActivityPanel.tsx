@@ -112,9 +112,7 @@ export function LiveActivityPanel() {
             disabled={loading}
             className="gap-1 text-xs"
           >
-            <RefreshCw
-              className={`w-3 h-3 ${loading ? "animate-spin" : ""}`}
-            />
+            <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
           <Link
@@ -142,10 +140,7 @@ export function LiveActivityPanel() {
                 key={e.id}
                 className="flex items-start gap-3 px-4 py-2.5 hover:bg-muted/40 transition-colors"
               >
-                <Badge
-                  variant="secondary"
-                  className={toneFor(e.eventType)}
-                >
+                <Badge variant="secondary" className={toneFor(e.eventType)}>
                   {e.eventType}
                 </Badge>
                 <div className="min-w-0 flex-1">

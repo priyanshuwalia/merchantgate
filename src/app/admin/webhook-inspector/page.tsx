@@ -1,14 +1,11 @@
 "use client";
 
 import {
-  Activity,
   AlertTriangle,
-  ArrowLeft,
   CheckCircle2,
   Lock,
   Radio,
   RefreshCw,
-  Send,
   ShieldAlert,
   ShieldCheck,
   Terminal,
@@ -16,18 +13,11 @@ import {
   XCircle,
   Zap,
 } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Header } from "@/components/dashboard/Header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import type { WebhookInspectionLog } from "@/lib/webhooks/inspector-store";
 
 export default function WebhookInspectorPage() {

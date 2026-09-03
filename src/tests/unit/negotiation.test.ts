@@ -14,7 +14,7 @@ const rules = getMerchantAgentRules();
 function expectOk<T extends object>(result: T | { error: string }): T {
   assert.ok(
     !("error" in result),
-    `expected success, got: ${("error" in result ? result.error : "")}`,
+    `expected success, got: ${"error" in result ? result.error : ""}`,
   );
   return result as T;
 }

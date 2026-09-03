@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       { ...resolved, temperature: 0, maxTokens: 20, timeoutMs: 15_000 },
     );
 
-    if (out && out.toUpperCase().includes("AGENTPAY_LINK_OK")) {
+    if (out?.toUpperCase().includes("AGENTPAY_LINK_OK")) {
       return NextResponse.json({
         success: true,
         provider: resolved.provider,

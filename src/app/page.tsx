@@ -152,13 +152,16 @@ export default function LandingPage() {
           </div>
 
           <div className="space-y-1">
-            <div className="text-text-muted">// 1. Discover capabilities</div>
-
+            <div className="text-text-muted">
+              {/* biome-ignore lint/suspicious/noCommentText: rendered display text */}
+              // 1. Discover capabilities
+            </div>
             <div className="font-medium text-primary">
               GET /.well-known/agent-commerce.json
             </div>
 
             <div className="pt-2 text-text-muted">
+              {/* biome-ignore lint/suspicious/noCommentText: rendered display text */}
               // 2. Search SKU catalogue
             </div>
 
@@ -167,6 +170,7 @@ export default function LandingPage() {
             </div>
 
             <div className="pt-2 text-text-muted">
+              {/* biome-ignore lint/suspicious/noCommentText: rendered display text */}
               // 3. Verify user mandate & generate authoritative quote
             </div>
 
@@ -175,6 +179,7 @@ export default function LandingPage() {
             </div>
 
             <div className="pt-2 text-text-muted">
+              {/* biome-ignore lint/suspicious/noCommentText: rendered display text */}
               // 4. Settle payment & lock inventory
             </div>
 

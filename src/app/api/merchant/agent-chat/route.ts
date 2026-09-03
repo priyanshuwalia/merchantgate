@@ -254,10 +254,9 @@ export async function POST(request: NextRequest) {
             baseUrl: body.baseUrl,
           }
         : undefined;
-    const llmOptions =
-      requestOverrideAi && requestOverrideAi.apiKey
-        ? requestOverrideAi
-        : merchantAi || requestOverrideAi;
+    const llmOptions = requestOverrideAi?.apiKey
+      ? requestOverrideAi
+      : merchantAi || requestOverrideAi;
 
     const llmOutput = await callLlm(
       [

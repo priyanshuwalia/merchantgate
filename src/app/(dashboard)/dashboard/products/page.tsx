@@ -10,7 +10,7 @@ import {
   Trash2,
   XCircle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Header } from "@/components/dashboard/Header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,13 +41,28 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { formatMinorUnits } from "@/lib/utils";
 
+interface Product {
+  id: string;
+  variant_id: string;
+  title: string;
+  description?: string;
+  category: string;
+  base_price_minor: number;
+  currency: string;
+  stock_quantity: number;
+  tax_rate_bps?: number;
+  returnable: boolean;
+  return_window_days?: number;
+  attributes?: Record<string, unknown>;
+}
+
 export default function ProductsPage() {
-  const [productsList, setProductsList] = useState<any[]>([]);
+  const [productsList, setProductsList] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -65,7 +80,7 @@ export default function ProductsPage() {
     ratingCount: "100",
   });
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
       const res = await fetch("/api/merchant/products");
@@ -78,11 +93,11 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchProducts();
-  }, []);
+  }, [fetchProducts]);
 
   const handleOpenAdd = () => {
     setEditingProduct(null);
@@ -103,7 +118,7 @@ export default function ProductsPage() {
     setIsModalOpen(true);
   };
 
-  const handleOpenEdit = (prod: any) => {
+  const handleOpenEdit = (prod: Product) => {
     const attrs = (prod.attributes as Record<string, unknown>) || {};
     setEditingProduct(prod);
     setFormData({
@@ -348,6 +363,7 @@ export default function ProductsPage() {
                                       viewBox="0 0 20 20"
                                       className={`w-3 h-3 ${star <= Math.round(avg) ? "fill-[#ffb822] text-[#ffb822]" : "fill-[#e8edf2] text-[#e8edf2]"}`}
                                     >
+                                      <title>{`${avg.toFixed(1)} out of 5 stars`}</title>
                                       <path d="M10 1.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8L10 14.9l-5.3 2.7 1-5.8L1.5 7.7l5.9-.9L10 1.5z" />
                                     </svg>
                                   ))}
@@ -438,10 +454,14 @@ export default function ProductsPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
             <div>
-              <label className="block text-foreground font-medium mb-1">
+              <label
+                htmlFor="product-title"
+                className="block text-foreground font-medium mb-1"
+              >
                 Product Title
               </label>
               <Input
+                id="product-title"
                 required
                 value={formData.title}
                 onChange={(e) =>
@@ -453,10 +473,14 @@ export default function ProductsPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-foreground font-medium mb-1">
+                <label
+                  htmlFor="variant-id"
+                  className="block text-foreground font-medium mb-1"
+                >
                   Variant ID (SKU)
                 </label>
                 <Input
+                  id="variant-id"
                   value={formData.variant_id}
                   onChange={(e) =>
                     setFormData({ ...formData, variant_id: e.target.value })
@@ -467,10 +491,14 @@ export default function ProductsPage() {
               </div>
 
               <div>
-                <label className="block text-foreground font-medium mb-1">
+                <label
+                  htmlFor="product-category"
+                  className="block text-foreground font-medium mb-1"
+                >
                   Category
                 </label>
                 <select
+                  id="product-category"
                   value={formData.category}
                   onChange={(e) =>
                     setFormData({ ...formData, category: e.target.value })
@@ -488,10 +516,14 @@ export default function ProductsPage() {
 
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="block text-foreground font-medium mb-1">
+                <label
+                  htmlFor="product-price"
+                  className="block text-foreground font-medium mb-1"
+                >
                   Price (₹ INR)
                 </label>
                 <Input
+                  id="product-price"
                   type="number"
                   step="0.01"
                   required
@@ -507,10 +539,14 @@ export default function ProductsPage() {
               </div>
 
               <div>
-                <label className="block text-foreground font-medium mb-1">
+                <label
+                  htmlFor="product-stock"
+                  className="block text-foreground font-medium mb-1"
+                >
                   Stock Qty
                 </label>
                 <Input
+                  id="product-stock"
                   type="number"
                   required
                   value={formData.stock_quantity}
@@ -525,10 +561,14 @@ export default function ProductsPage() {
               </div>
 
               <div>
-                <label className="block text-foreground font-medium mb-1">
+                <label
+                  htmlFor="product-tax"
+                  className="block text-foreground font-medium mb-1"
+                >
                   Tax BPS
                 </label>
                 <Input
+                  id="product-tax"
                   type="number"
                   value={formData.tax_rate_bps}
                   onChange={(e) =>
@@ -545,10 +585,14 @@ export default function ProductsPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-foreground font-medium mb-1">
+                <label
+                  htmlFor="product-rating-avg"
+                  className="block text-foreground font-medium mb-1"
+                >
                   Rating Average (0–5)
                 </label>
                 <Input
+                  id="product-rating-avg"
                   type="number"
                   step="0.1"
                   min={0}
@@ -564,10 +608,14 @@ export default function ProductsPage() {
               </div>
 
               <div>
-                <label className="block text-foreground font-medium mb-1">
+                <label
+                  htmlFor="product-rating-count"
+                  className="block text-foreground font-medium mb-1"
+                >
                   Rating Count
                 </label>
                 <Input
+                  id="product-rating-count"
                   type="number"
                   min={0}
                   required
@@ -582,10 +630,14 @@ export default function ProductsPage() {
             </div>
 
             <div>
-              <label className="block text-foreground font-medium mb-1">
+              <label
+                htmlFor="product-description"
+                className="block text-foreground font-medium mb-1"
+              >
                 Description
               </label>
               <Textarea
+                id="product-description"
                 rows={2}
                 value={formData.description}
                 onChange={(e) =>

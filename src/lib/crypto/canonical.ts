@@ -1,4 +1,4 @@
-import { createHash } from "crypto";
+import { createHash } from "node:crypto";
 
 /**
  * Deterministically stringify a JavaScript object using canonical JSON formatting (sorted keys).
