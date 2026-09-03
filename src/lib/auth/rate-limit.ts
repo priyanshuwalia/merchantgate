@@ -6,6 +6,8 @@
  * a cache dependency. Sliding-window leaders can be swapped in for production.
  */
 
+import { NextResponse } from "next/server";
+
 const globalStore = globalThis as unknown as {
   __agentpayRateLimits?: Map<string, { windowStart: number; count: number }>;
 };
@@ -69,4 +71,41 @@ export function rateLimitHeaders(info: RateLimitInfo): Record<string, string> {
     "x-ratelimit-remaining": String(info.remaining),
     "x-ratelimit-reset": String(info.retryAfterSeconds),
   };
+}
+
+/** Best-effort client IP from reverse-proxy / Next headers. */
+function clientIp(request: Request): string {
+  const fwd = request.headers.get("x-forwarded-for");
+  if (fwd) return fwd.split(",")[0].trim() || "unknown";
+  return (
+    request.headers.get("x-real-ip") ||
+    request.headers.get("cf-connecting-ip") ||
+    "unknown"
+  );
+}
+
+/**
+ * Per-client rate limit for the internal HTTP API routes. Uses a namespace key
+ * scoped to mount + client IP so a single abusive caller cannot hammer an
+ * expensive/state-changing endpoint (LLM quota burning, brute-force login,
+ * refunds, approvals, etc.). Returns a 429 NextResponse when the limit has been
+ * exceeded (with standard headers), otherwise null so the caller proceeds.
+ */
+export function rateLimitRequest(
+  request: Request,
+  opts: { limit: number; windowSeconds?: number; namespace: string },
+): NextResponse | null {
+  const ip = clientIp(request);
+  const info = checkRateLimit(`${opts.namespace}:${ip}`, {
+    limit: opts.limit,
+    windowSeconds: opts.windowSeconds,
+  });
+  if (info.ok) return null;
+  return NextResponse.json(
+    {
+      error: "RATE_LIMITED",
+      message: `Rate limit of ${info.limit} requests / ${opts.windowSeconds ?? 60}s exceeded. Retry after ${info.retryAfterSeconds}s.`,
+    },
+    { status: 429, headers: rateLimitHeaders(info) },
+  );
 }

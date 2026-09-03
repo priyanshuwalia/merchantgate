@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { type NextRequest, NextResponse } from "next/server";
+import { rateLimitRequest } from "@/lib/auth/rate-limit";
 import { createSessionToken, SESSION_COOKIE } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,15 @@ function getAdminPassword(): string {
  * enumeration / oracle leaks. Password comparison is timing-safe.
  */
 export async function POST(request: NextRequest) {
+  // Throttle password attempts per IP to frustrate brute-force / credential
+  // stuffing before the timing-safe comparison even runs.
+  const limited = rateLimitRequest(request, {
+    namespace: "auth-login",
+    limit: Number(process.env.RATE_LIMIT_LOGIN) || 10,
+    windowSeconds: 60 * 15,
+  });
+  if (limited) return limited;
+
   try {
     const body = await request.json().catch(() => ({}));
     const password = typeof body.password === "string" ? body.password : "";

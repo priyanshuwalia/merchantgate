@@ -8,6 +8,7 @@ import {
   sanitizeAssistantReply,
   stripFencedBlock,
 } from "@/lib/ai/llm";
+import { rateLimitRequest } from "@/lib/auth/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -369,6 +370,16 @@ function formatProductList(
 }
 
 export async function POST(request: NextRequest) {
+  // This endpoint is unauthenticated yet drives the LLM (falling back to the
+  // merchant's stored/env model key when the client sends none). Rate-limit per
+  // IP so an attacker cannot exhaust the merchant's AI quota or spend unbounded
+  // tokens.
+  const limited = rateLimitRequest(request, {
+    namespace: "agent-chat",
+    limit: Number(process.env.RATE_LIMIT_AGENT_CHAT) || 30,
+  });
+  if (limited) return limited;
+
   try {
     const body = await request.json();
     const {

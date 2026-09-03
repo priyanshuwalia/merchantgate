@@ -9,6 +9,7 @@ import {
 } from "@/db";
 import { logAuditEvent } from "@/lib/audit/logger";
 import { requireMerchantAuth } from "@/lib/auth/guard";
+import { rateLimitRequest } from "@/lib/auth/rate-limit";
 import { generateCartMandateSnapshotHash } from "@/lib/crypto/canonical";
 import { SURGE_PRICING_REASON } from "@/lib/merchant/surge";
 import {
@@ -25,6 +26,14 @@ export async function POST(
 ) {
   const auth = requireMerchantAuth(request);
   if (auth instanceof NextResponse) return auth;
+
+  // Approving a request creates a real Razorpay order / budget reservation.
+  // Cap per-client to prevent abuse of an authenticated session.
+  const limited = rateLimitRequest(request, {
+    namespace: "merchant-approve",
+    limit: Number(process.env.RATE_LIMIT_APPROVE) || 60,
+  });
+  if (limited) return limited;
 
   const traceId = generateTraceId();
 

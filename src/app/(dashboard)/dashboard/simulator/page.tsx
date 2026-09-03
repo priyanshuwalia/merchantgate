@@ -213,7 +213,7 @@ export default function SimulatorPage() {
       // Newest toast appears at the very top (closest to the corner); older
       // ones slide down the stack sequentially.
       setToasts((prev) => [{ ...info, id }, ...prev]);
-      setTimeout(() => dismissToast(id), 6500);
+      setTimeout(() => dismissToast(id), 10000);
     },
     [dismissToast],
   );
@@ -1306,28 +1306,38 @@ export default function SimulatorPage() {
                   ) : (
                     <XCircle className="w-5 h-5 mt-0.5 shrink-0" />
                   )}
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold">{result.finalDecision}</span>
-                      {result.negotiation?.finalDiscountBps ? (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] gap-1 text-inherit"
-                        >
-                          <Handshake className="w-3 h-3" />
-                          negotiated{" "}
-                          {(result.negotiation.finalDiscountBps / 100).toFixed(
-                            1,
-                          )}
-                          % off · saved{" "}
-                          {formatMinorUnits(result.negotiation.savingsMinor)} ·{" "}
-                          {result.negotiation.rounds} rounds
-                        </Badge>
-                      ) : null}
                     </div>
                     <p className="text-xs text-text-secondary mt-1 max-w-3xl">
                       {result.summary}
                     </p>
+                    {result.negotiation?.finalDiscountBps ? (
+                      <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-[#00b874]/30 bg-white/80 px-3.5 py-2.5 text-[#00875c]">
+                        <span className="flex items-center gap-1.5 text-sm font-extrabold tracking-tight">
+                          <Handshake className="w-4 h-4" />
+                          {(result.negotiation.finalDiscountBps / 100).toFixed(
+                            1,
+                          )}
+                          % off
+                        </span>
+                        <span className="hidden h-5 w-px bg-[#00b874]/20 sm:block" />
+                        <span className="flex items-baseline gap-1.5 text-sm">
+                          <span className="text-xs text-text-secondary">
+                            You saved
+                          </span>
+                          <span className="font-mono text-base font-bold text-emerald-700">
+                            {formatMinorUnits(result.negotiation.savingsMinor)}
+                          </span>
+                        </span>
+                        <span className="ml-auto text-[11px] font-medium text-text-muted">
+                          after {result.negotiation.rounds} round
+                          {result.negotiation.rounds === 1 ? "" : "s"} of
+                          negotiation
+                        </span>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
                 <div className="text-[10px] font-mono text-right text-text-muted shrink-0">
@@ -2097,10 +2107,10 @@ export default function SimulatorPage() {
                 <button
                   type="button"
                   onClick={() => dismissToast(toast.id)}
-                  aria-label="Dismiss"
-                  className="opacity-60 hover:opacity-100"
+                  aria-label="Dismiss notification"
+                  className="flex h-6 w-6 items-center justify-center rounded-md opacity-60 transition-colors hover:bg-black/5 hover:opacity-100"
                 >
-                  <XCircle className="w-3.5 h-3.5" />
+                  <X className="h-3.5 w-3.5" />
                 </button>
               </div>
 

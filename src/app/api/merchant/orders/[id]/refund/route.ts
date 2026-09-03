@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { db, paymentActions, refundActions } from "@/db";
 import { logAuditEvent } from "@/lib/audit/logger";
 import { requireMerchantAuth } from "@/lib/auth/guard";
+import { rateLimitRequest } from "@/lib/auth/rate-limit";
 import { refundPayment } from "@/lib/payments/razorpay";
 import { generateId, generateTraceId } from "@/lib/utils";
 
@@ -14,6 +15,14 @@ export async function POST(
 ) {
   const auth = requireMerchantAuth(request);
   if (auth instanceof NextResponse) return auth;
+
+  // Refunds move real money (Razorpay). Cap per-client so an abused session or
+  // stray client cannot trigger a refund storm.
+  const limited = rateLimitRequest(request, {
+    namespace: "merchant-refund",
+    limit: Number(process.env.RATE_LIMIT_REFUND) || 30,
+  });
+  if (limited) return limited;
 
   const traceId = generateTraceId();
 

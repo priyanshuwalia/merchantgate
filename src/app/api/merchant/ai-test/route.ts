@@ -4,6 +4,7 @@ import { db, merchants } from "@/db";
 import { callLlm } from "@/lib/ai/llm";
 import { resolveAiConfig } from "@/lib/ai/provider";
 import { requireMerchantAuth } from "@/lib/auth/guard";
+import { rateLimitRequest } from "@/lib/auth/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,13 @@ function isSafeBaseUrl(baseUrl: unknown): boolean {
 export async function POST(request: NextRequest) {
   const auth = requireMerchantAuth(request);
   if (auth instanceof NextResponse) return auth;
+
+  // Every call fires a real LLM completion using the merchant's key — cap it.
+  const limited = rateLimitRequest(request, {
+    namespace: "merchant-ai-test",
+    limit: Number(process.env.RATE_LIMIT_AI_TEST) || 15,
+  });
+  if (limited) return limited;
 
   try {
     const body = await request.json().catch(() => ({}));

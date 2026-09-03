@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import type { AiConfigInput } from "@/lib/ai/provider";
 import { requireMerchantAuth } from "@/lib/auth/guard";
+import { rateLimitRequest } from "@/lib/auth/rate-limit";
 import { SimulatedBuyerAgent } from "@/lib/simulation/buyer-agent";
 import {
   type CustomSimulationConfig,
@@ -14,6 +15,14 @@ export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   const auth = requireMerchantAuth(request);
   if (auth instanceof NextResponse) return auth;
+
+  // Runs are expensive (full agent negotiation + possible LLM calls) — cap
+  // concurrent abuse from any one client.
+  const limited = rateLimitRequest(request, {
+    namespace: "simulation-run",
+    limit: Number(process.env.RATE_LIMIT_SIMULATION_RUN) || 20,
+  });
+  if (limited) return limited;
 
   try {
     const body = await request.json().catch(() => ({}));

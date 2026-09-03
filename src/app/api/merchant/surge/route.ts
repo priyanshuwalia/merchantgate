@@ -9,6 +9,7 @@ import {
 } from "@/db";
 import { logAuditEvent } from "@/lib/audit/logger";
 import { requireMerchantAuth } from "@/lib/auth/guard";
+import { rateLimitRequest } from "@/lib/auth/rate-limit";
 import { generateCartMandateSnapshotHash } from "@/lib/crypto/canonical";
 import {
   getSurgeStatus,
@@ -39,6 +40,14 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const auth = requireMerchantAuth(request);
   if (auth instanceof NextResponse) return auth;
+
+  // Toggling surge re-prices every in-flight quote (a loop over the DB). Cap
+  // per-client so this cannot be spammed into a write storm.
+  const limited = rateLimitRequest(request, {
+    namespace: "merchant-surge",
+    limit: Number(process.env.RATE_LIMIT_SURGE) || 20,
+  });
+  if (limited) return limited;
 
   try {
     const body = await request.json().catch(() => ({}));

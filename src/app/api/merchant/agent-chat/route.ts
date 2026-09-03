@@ -10,6 +10,7 @@ import {
 } from "@/lib/ai/llm";
 import type { AiConfigInput } from "@/lib/ai/provider";
 import { requireMerchantAuth } from "@/lib/auth/guard";
+import { rateLimitRequest } from "@/lib/auth/rate-limit";
 import {
   getMerchantAgentRules,
   type MerchantAgentRuleSet,
@@ -185,6 +186,14 @@ If the merchant expresses intent but misses a critical number (e.g. "give a disc
 export async function POST(request: NextRequest) {
   const auth = requireMerchantAuth(request);
   if (auth instanceof NextResponse) return auth;
+
+  // Guard the LLM (merchant API key) surface: cap per-IP calls so an attacker
+  // cannot burn the merchant's model quota by hammering this endpoint.
+  const limited = rateLimitRequest(request, {
+    namespace: "merchant-agent-chat",
+    limit: Number(process.env.RATE_LIMIT_AGENT_CHAT) || 30,
+  });
+  if (limited) return limited;
 
   try {
     const body = await request.json();

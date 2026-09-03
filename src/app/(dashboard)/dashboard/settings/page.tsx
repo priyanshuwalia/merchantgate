@@ -117,7 +117,7 @@ export default function SettingsPage() {
         if (data.ai) setSavedAi(data.ai);
         setAiApiKey("");
         setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
+        setTimeout(() => setSaved(false), 6000);
       }
     } catch (e) {
       console.error(e);

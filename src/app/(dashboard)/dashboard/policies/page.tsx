@@ -74,7 +74,7 @@ export default function PoliciesPage() {
       });
       if (res.ok) {
         setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
+        setTimeout(() => setSaved(false), 6000);
       }
     } catch (e) {
       console.error(e);
