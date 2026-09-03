@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-labelledby="title desc">
+  <title id="title">MerchantGate</title>
+  <desc id="desc">Merchant gate mark, monochrome.</desc>
+  <g fill="currentColor">
+    <rect x="5" y="5" width="7" height="38" rx="2"/>
+    <rect x="5" y="5" width="38" height="7" rx="2"/>
+    <rect x="36" y="16" width="7" height="27" rx="2"/>
+  </g>
+  <circle cx="22" cy="26" r="4.4" fill="#ffffff"/>
+  <circle cx="22" cy="26" r="2" fill="currentColor"/>
+</svg>

@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint, Unit Tests, Typecheck & Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.20.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck (build)
+        run: pnpm build
+
+      - name: Unit tests
+        env:
+          # Unit test harness needs a DATABASE_URL surface value; it is never
+          # actually connected to (see src/tests/unit/_setup.ts).
+          DATABASE_URL: postgresql://test:test@localhost:5432/test
+        run: pnpm test
+
+      - name: Biome lint
+        run: pnpm lint

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 48" role="img" aria-labelledby="title desc">
+  <title id="title">MerchantGate</title>
+  <desc id="desc">MerchantGate wordmark with gate mark — AI-native merchant platform.</desc>
+  <defs>
+    <linearGradient id="mg-grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0066ff"/>
+      <stop offset="55%" stop-color="#0052cc"/>
+      <stop offset="100%" stop-color="#00338d"/>
+    </linearGradient>
+  </defs>
+  <g fill="url(#mg-grad2)">
+    <rect x="5" y="5" width="7" height="38" rx="2"/>
+    <rect x="5" y="5" width="38" height="7" rx="2"/>
+    <rect x="36" y="16" width="7" height="27" rx="2"/>
+  </g>
+  <circle cx="22" cy="26" r="4.4" fill="#00b874"/>
+  <circle cx="22" cy="26" r="2" fill="#ffffff"/>
+  <text x="52" y="31" font-family="Inter, Helvetica, Arial, sans-serif" font-size="24" font-weight="800" letter-spacing="-0.5" fill="#1a1a2e">Merchant</text>
+  <text x="126" y="31" font-family="Inter, Helvetica, Arial, sans-serif" font-size="24" font-weight="300" letter-spacing="-0.5" fill="#0066ff">Gate</text>
+</svg>

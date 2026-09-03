@@ -1,36 +1,106 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MerchantGate — Agent-Payable Merchant Platform
 
-## Getting Started
+> **AI agents are the new customers.** MerchantGate exposes a discovery,
+> quoting, checkout, and payment API that AI buyer agents understand, while
+> giving human merchants a full dashboard for visibility and control.
 
-First, run the development server:
+This is a **Next.js 16.3.2 (App Router)** application built with
+**TypeScript**, **Tailwind CSS 4**, **Drizzle ORM + Neon PostgreSQL**, and the
+**Razorpay** Node SDK in test mode. The full architecture and implementation
+guide lives in [`AGENTS.md`](./AGENTS.md).
+
+## Quick Start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+cp .env.example .env.local        # fill in DATABASE_URL, Razorpay test keys
+pnpm db:generate                  # scaffold drizzle SQL migrations
+pnpm db:migrate                   # apply schema to the database
+pnpm db:seed                      # seed the merchant catalogue + accessories
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). The merchant dashboard
+covers catalogue, orders, audit trail, live agent activity, policy engine,
+surge/campaign pricing, live negotiation, and the simulated buyer flow.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## What's Implemented
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Agent-facing API (`/v1/agent/*`)
+- `GET /.well-known/agent-commerce.json` — machine-readable merchant discovery
+- `GET /v1/agent/catalog`, `GET /v1/agent/products/{id}` — catalogue search
+- `POST /v1/agent/verify` — mandate + agent identity verification
+- `POST /v1/agent/checkout` — authoritative, time-bound cart mandate quote
+- `POST /v1/agent/checkout/confirm` — confirm a quote and open a Razorpay order
+- `GET /v1/agent/payments/{id}` — payment status
+- `POST /v1/agent/upsell` — content-addressed upsell offers
+- `POST /v1/agent/negotiate` — live price negotiation sessions
 
-## Learn More
+### Money safety (deterministic + auditable)
+- **Authoritative quoting** — the merchant (not the LLM) sets price,
+  availability, and tax; quotes carry a canonical JSON `devProof` digest and
+  `expiresAt`.
+- **Policy gate** — every checkout goes through `ALLOW / STEP_UP / DENY` with
+  `reasonCodes`; STEP_UP requires a merchant approval in the dashboard.
+- **Rolling budget** — reservations are atomic per trace; enforces
+  `ROLLING_BUDGET_EXHAUSTED` when exhausted.
+- **Campaign discounts** — only lower list price pre-negotiation, never during
+  surge, capped at 4000 bps; surge never re-prices negotiated lines.
+- **Deterministic upsell ids** — `upsellOfferId` is `SHA-256` content-derived so
+  it survives the upsell → checkout round trip.
+- **Append-only audit trail** — every action writes `audit_events` with
+  `snapshot_hash`, `prev_event_hash`, and `reason_codes`.
 
-To learn more about Next.js, take a look at the following resources:
+### Payments
+- **Razorpay orders** created at `checkout/confirm`; real `pay_*` payments are
+  refunded via the Razorpay API (provider failure → HTTP 502, never a fake
+  success); simulated payments use `rfrp_sim_*` ids.
+- **Webhooks** on `payment.captured`, `payment.failed`, and `refund.*` are
+  verified with HMAC-SHA256 and deduplicated by event id.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Agent authentication
+- `demo` (default, permissive + rate-limited) vs `strict` mode
+  (`AGENT_AUTH_MODE` / `config.agentAuthMode`).
+- API keys `agt_secret_<48 hex>`; only the SHA-256 hash is stored. Issue keys
+  via `GET/POST /api/merchant/agents`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Merchant dashboard
+- Overview (with **Live Agent Activity**), products, agent requests & STEP_UP
+  approval, orders & refunds, policies, analytics, **Audit Trail explorer**,
+  simulator, and settings.
+- Merchant-facing APIs: `/api/merchant/stats`, `/api/merchant/requests`,
+  `/api/merchant/orders/[id]/refund`, `/api/merchant/agents`,
+  `/api/merchant/campaigns`, `/api/merchant/audit`.
 
-## Deploy on Vercel
+## Testing
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+pnpm test     # tsx unit tests in src/tests/unit (31+ cases)
+pnpm lint     # biome check
+pnpm build    # typecheck + production build
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+CI (`.github/workflows/ci.yml`) runs build, unit tests, and lint on every push
+and PR. Deployment config is in [`vercel.json`](./vercel.json).
+
+## Reseeding after catalogue changes
+
+New accessory variants (`acc_*`) were added to the seed. To refresh a local
+catalogue:
+
+```bash
+pnpm db:seed
+```
+
+## Environment
+
+| Variable                  | Required | Purpose                            |
+| ------------------------- | -------- | ---------------------------------- |
+| `DATABASE_URL`            | Yes      | Neon PostgreSQL connection         |
+| `RAZORPAY_KEY_ID`         | Yes      | Razorpay API key (test)            |
+| `RAZORPAY_KEY_SECRET`     | Yes      | Razorpay secret (test)             |
+| `RAZORPAY_WEBHOOK_SECRET` | Yes      | Webhook HMAC secret                |
+| `AGENT_AUTH_MODE`         | No       | `demo` (default) or `strict`       |
+| `APP_BASE_URL`            | No       | Public app URL                     |
+
+Full protocol reference: see [`AGENTS.md`](./AGENTS.md).
