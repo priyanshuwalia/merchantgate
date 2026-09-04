@@ -361,11 +361,3 @@ Multi-round negotiation within merchant-configured bounds. Each round logs inten
 ```
 
 </details>
-
----
-
-<div align="center">
-
-**Built for the merchants who will sell to machines.**
-
-</div>
