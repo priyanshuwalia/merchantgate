@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="public/logos/merchantgate-mark.svg" alt="MerchantGate" width="400" />
+<img src="public/logos/merchantgate-mark.svg" alt="MerchantGate" width="200" height="200" />
 <span>MerchantGate</span>
 
 ### The merchant platform built for AI buyers.
