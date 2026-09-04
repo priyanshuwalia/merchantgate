@@ -1,6 +1,7 @@
 <div align="center">
 
-<img src="public/logos/merchantgate-horizontal.svg" alt="MerchantGate" width="400" />
+<img src="public/logos/merchantgate-mark.svg" alt="MerchantGate" width="400" />
+<span>MerchantGate</span>
 
 ### The merchant platform built for AI buyers.
 
@@ -22,11 +23,11 @@
 
 **[merchantgate.vercel.app](https://merchantgate.vercel.app/)**
 
-| | |
-|---|---|
-| **Dashboard Password** | `MerchantPassword` |
-| **Mode** | Razorpay Test Mode — no real money moves |
-| **What to try** | Login → Simulator tab → run "Happy Path" → watch the full flow in Audit Trail |
+|                        |                                                                               |
+| ---------------------- | ----------------------------------------------------------------------------- |
+| **Dashboard Password** | `MerchantPassword`                                                            |
+| **Mode**               | Razorpay Test Mode — no real money moves                                      |
+| **What to try**        | Login → Simulator tab → run "Happy Path" → watch the full flow in Audit Trail |
 
 ---
 
@@ -76,33 +77,33 @@ AI buyer agents — from OpenAI's Operator to Google's AP2-powered assistants �
 
 ### For AI Agents
 
-| Endpoint | Method | What it does |
-|---|---|---|
-| `/.well-known/agent-commerce.json` | GET | Machine-readable merchant discovery |
-| `/v1/agent/catalog` | GET | Search products with filters |
-| `/v1/agent/products/{id}` | GET | Fetch a specific product variant |
-| `/v1/agent/verify` | POST | Verify agent mandate and identity |
-| `/v1/agent/negotiate` | POST | Multi-round price negotiation |
-| `/v1/agent/checkout` | POST | Request an authoritative quote |
-| `/v1/agent/checkout/confirm` | POST | Confirm quote, open Razorpay order |
-| `/v1/agent/payments/{id}` | GET | Check payment status |
-| `/v1/agent/upsell` | POST | Get cross-sell / upsell recommendations |
+| Endpoint                           | Method | What it does                            |
+| ---------------------------------- | ------ | --------------------------------------- |
+| `/.well-known/agent-commerce.json` | GET    | Machine-readable merchant discovery     |
+| `/v1/agent/catalog`                | GET    | Search products with filters            |
+| `/v1/agent/products/{id}`          | GET    | Fetch a specific product variant        |
+| `/v1/agent/verify`                 | POST   | Verify agent mandate and identity       |
+| `/v1/agent/negotiate`              | POST   | Multi-round price negotiation           |
+| `/v1/agent/checkout`               | POST   | Request an authoritative quote          |
+| `/v1/agent/checkout/confirm`       | POST   | Confirm quote, open Razorpay order      |
+| `/v1/agent/payments/{id}`          | GET    | Check payment status                    |
+| `/v1/agent/upsell`                 | POST   | Get cross-sell / upsell recommendations |
 
 ### For Merchants
 
-| Capability | Details |
-|---|---|
-| **Product Management** | CRUD, inventory tracking, variant-level pricing, categories & tags |
-| **Policy Engine** | Transaction limits, price slippage tolerance, merchant allowlists, rolling 30-day budgets |
-| **Agent Approval** | STEP_UP decisions surface in dashboard for human review before quote is released |
-| **Campaigns** | Flash sales, volume discounts, bundle deals, loyalty tiers, clearance, category-wide promotions |
-| **Surge Pricing** | Dynamic pricing simulation with configurable multipliers |
-| **Upsell Engine** | Market basket analysis generates content-addressed upsell offers |
-| **Negotiation UI** | Merchants can respond to agent negotiation rounds in real-time |
-| **Order Management** | View orders, process refunds via Razorpay API |
-| **Audit Trail** | Append-only log with SHA-256 hash chain — every action traceable |
-| **Webhook Inspector** | Real-time SSE stream of incoming Razorpay webhooks |
-| **Global Kill Switch** | Disable AI sales across the board with one toggle |
+| Capability             | Details                                                                                         |
+| ---------------------- | ----------------------------------------------------------------------------------------------- |
+| **Product Management** | CRUD, inventory tracking, variant-level pricing, categories & tags                              |
+| **Policy Engine**      | Transaction limits, price slippage tolerance, merchant allowlists, rolling 30-day budgets       |
+| **Agent Approval**     | STEP_UP decisions surface in dashboard for human review before quote is released                |
+| **Campaigns**          | Flash sales, volume discounts, bundle deals, loyalty tiers, clearance, category-wide promotions |
+| **Surge Pricing**      | Dynamic pricing simulation with configurable multipliers                                        |
+| **Upsell Engine**      | Market basket analysis generates content-addressed upsell offers                                |
+| **Negotiation UI**     | Merchants can respond to agent negotiation rounds in real-time                                  |
+| **Order Management**   | View orders, process refunds via Razorpay API                                                   |
+| **Audit Trail**        | Append-only log with SHA-256 hash chain — every action traceable                                |
+| **Webhook Inspector**  | Real-time SSE stream of incoming Razorpay webhooks                                              |
+| **Global Kill Switch** | Disable AI sales across the board with one toggle                                               |
 
 ### Built-in Simulation
 
@@ -177,18 +178,18 @@ Every financial action in MerchantGate is **explainable, bounded, and gated**:
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Framework | Next.js 16 (App Router) |
-| Language | TypeScript 5 |
-| Styling | Tailwind CSS 4 + shadcn/ui |
-| Database | Neon PostgreSQL + Drizzle ORM |
-| Payments | Razorpay Node SDK (test mode) |
-| AI | Vercel AI SDK + OpenAI-compatible providers |
-| Validation | Zod |
-| Testing | Node test runner + Vitest |
-| CI/CD | GitHub Actions |
-| Deployment | Vercel |
+| Layer      | Technology                                  |
+| ---------- | ------------------------------------------- |
+| Framework  | Next.js 16 (App Router)                     |
+| Language   | TypeScript 5                                |
+| Styling    | Tailwind CSS 4 + shadcn/ui                  |
+| Database   | Neon PostgreSQL + Drizzle ORM               |
+| Payments   | Razorpay Node SDK (test mode)               |
+| AI         | Vercel AI SDK + OpenAI-compatible providers |
+| Validation | Zod                                         |
+| Testing    | Node test runner + Vitest                   |
+| CI/CD      | GitHub Actions                              |
+| Deployment | Vercel                                      |
 
 ---
 
@@ -236,15 +237,15 @@ src/
 
 ### Environment Variables
 
-| Variable | Required | Description |
-|---|---|---|
-| `DATABASE_URL` | Yes | Neon PostgreSQL connection string |
-| `RAZORPAY_KEY_ID` | Yes | Razorpay API key (test mode) |
-| `RAZORPAY_KEY_SECRET` | Yes | Razorpay secret (test mode) |
-| `RAZORPAY_WEBHOOK_SECRET` | Yes | HMAC secret for webhook verification |
-| `MERCHANT_ADMIN_PASSWORD` | Yes | Dashboard login password (min 8 chars) |
-| `AGENT_AUTH_MODE` | No | `demo` (default) or `strict` |
-| `APP_BASE_URL` | No | Public app URL (for webhooks) |
+| Variable                  | Required | Description                            |
+| ------------------------- | -------- | -------------------------------------- |
+| `DATABASE_URL`            | Yes      | Neon PostgreSQL connection string      |
+| `RAZORPAY_KEY_ID`         | Yes      | Razorpay API key (test mode)           |
+| `RAZORPAY_KEY_SECRET`     | Yes      | Razorpay secret (test mode)            |
+| `RAZORPAY_WEBHOOK_SECRET` | Yes      | HMAC secret for webhook verification   |
+| `MERCHANT_ADMIN_PASSWORD` | Yes      | Dashboard login password (min 8 chars) |
+| `AGENT_AUTH_MODE`         | No       | `demo` (default) or `strict`           |
+| `APP_BASE_URL`            | No       | Public app URL (for webhooks)          |
 
 ---
 
@@ -281,6 +282,7 @@ Returns merchant capabilities, supported endpoints, payment handlers, and curren
   "money": { "currencies": ["INR"], "minorUnits": true }
 }
 ```
+
 </details>
 
 <details>
@@ -305,6 +307,7 @@ Validates an agent's intent mandate. Returns `ALLOW`, `STEP_UP`, or `DENY` with 
   "expiresAt": "2026-09-04T12:00:00Z"
 }
 ```
+
 </details>
 
 <details>
@@ -332,6 +335,7 @@ Agent sends cart items. Merchant returns a time-bound cart mandate with frozen p
   "razorpayOrderId": "order_abc123"
 }
 ```
+
 </details>
 
 <details>
@@ -354,6 +358,7 @@ Multi-round negotiation within merchant-configured bounds. Each round logs inten
   "floorMinor": 1439900
 }
 ```
+
 </details>
 
 ---
