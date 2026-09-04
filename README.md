@@ -44,7 +44,7 @@ AI buyer agents — from OpenAI's Operator to Google's AP2-powered assistants �
 
 ```
 ┌──────────────────┐         ┌─────────────────────────┐         ┌──────────────┐
-│  AI Buyer Agent  │────────▶│     MerchantGate API     │────────▶│   Razorpay   │
+│  AI Buyer Agent  │────────▶│     MerchantGate API    │────────▶│  Razorpay    │
 │                  │  JSON   │                         │  Order  │  (Test Mode) │
 │  Intent Mandate  │◀────────│  Discovery · Verify ·   │◀────────│              │
 │  Cart Request    │  Quote  │  Negotiate · Checkout   │  Webhook│              │
