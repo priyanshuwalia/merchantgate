@@ -1,13 +1,12 @@
 <div align="center">
 
-# MerchantGate
+<img src="public/logos/merchantgate-horizontal.svg" alt="MerchantGate" width="400" />
 
 ### The merchant platform built for AI buyers.
 
 **Discovery. Verification. Checkout. Payment. — all in a protocol AI agents understand.**
 
 [![CI](https://github.com/your-org/merchantgate/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/merchantgate/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 [Documentation](#how-it-works) · [API Reference](#agent-facing-api) · [Quick Start](#quick-start) · [Deploy](#deployment)
 
@@ -18,6 +17,18 @@
 <!-- PLACEHOLDER: Hero GIF — full agent-to-merchant flow (discovery → checkout → payment) -->
 
 <br/>
+
+## Live Demo
+
+**[merchantgate.vercel.app](https://merchantgate.vercel.app/)**
+
+| | |
+|---|---|
+| **Dashboard Password** | `MerchantPassword` |
+| **Mode** | Razorpay Test Mode — no real money moves |
+| **What to try** | Login → Simulator tab → run "Happy Path" → watch the full flow in Audit Trail |
+
+---
 
 ## The Problem
 
@@ -131,16 +142,16 @@ Open [http://localhost:3000](http://localhost:3000) to access the merchant dashb
 
 ```bash
 # Discovery
-curl http://localhost:3000/.well-known/agent-commerce.json
+curl https://merchantgate.vercel.app/.well-known/agent-commerce.json
 
 # Search catalog
-curl "http://localhost:3000/v1/agent/catalog?q=keyboard&inStock=true"
+curl "https://merchantgate.vercel.app/v1/agent/catalog?q=keyboard&inStock=true"
 
 # Get product details
-curl http://localhost:3000/v1/agent/products/kbd_nimbus_75_black_brown
+curl https://merchantgate.vercel.app/v1/agent/products/kbd_nimbus_75_black_brown
 
 # Run a full simulation
-curl -X POST http://localhost:3000/api/simulation/run \
+curl -X POST https://merchantgate.vercel.app/api/simulation/run \
   -H "Content-Type: application/json" \
   -d '{"scenario": "happyPath"}'
 ```
@@ -231,6 +242,7 @@ src/
 | `RAZORPAY_KEY_ID` | Yes | Razorpay API key (test mode) |
 | `RAZORPAY_KEY_SECRET` | Yes | Razorpay secret (test mode) |
 | `RAZORPAY_WEBHOOK_SECRET` | Yes | HMAC secret for webhook verification |
+| `MERCHANT_ADMIN_PASSWORD` | Yes | Dashboard login password (min 8 chars) |
 | `AGENT_AUTH_MODE` | No | `demo` (default) or `strict` |
 | `APP_BASE_URL` | No | Public app URL (for webhooks) |
 
@@ -280,7 +292,7 @@ Validates an agent's intent mandate. Returns `ALLOW`, `STEP_UP`, or `DENY` with 
 // Request
 {
   "agentId": "agt_01K3...",
-  "intentMandate": { "type": "intent_mandate.v1", ... },
+  "intentMandate": { "type": "intent_mandate.v1", "..." : "..." },
   "intentMandateId": "int_01K3..."
 }
 
@@ -343,12 +355,6 @@ Multi-round negotiation within merchant-configured bounds. Each round logs inten
 }
 ```
 </details>
-
----
-
-## License
-
-MIT
 
 ---
 
