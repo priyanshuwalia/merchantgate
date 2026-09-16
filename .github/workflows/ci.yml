@@ -29,6 +29,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Typecheck (build)
+        env:
+          # `next build` evaluates route modules at compile time and the db
+          # client fails fast at import without a DATABASE_URL surface value.
+          # This placeholder is never actually connected to (matching the
+          # unit-test step below); all DB-importing routes are force-dynamic
+          # so no query executes during the build.
+          DATABASE_URL: postgresql://test:test@localhost:5432/test
         run: pnpm build
 
       - name: Unit tests
