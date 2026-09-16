@@ -1,7 +1,6 @@
 import {
   ArrowRight,
   BadgeCheck,
-  Bot,
   Code2,
   Globe,
   Lock,
@@ -27,13 +26,6 @@ export default function LandingPage() {
           >
             <Globe className="h-3.5 w-3.5" />
             <span>Discovery Manifest</span>
-          </Link>
-
-          <Link
-            href="/dashboard/sandbox"
-            className="rounded-md border border-border bg-white px-3 py-1.5 text-xs font-semibold text-foreground transition-colors duration-200 hover:border-primary/30 hover:bg-accent/60"
-          >
-            Agent Sandbox
           </Link>
 
           <Link
@@ -91,14 +83,6 @@ export default function LandingPage() {
               >
                 <Sparkles className="h-4 w-4 transition-transform group-hover:scale-110" />
                 <span>Launch Merchant Console</span>
-              </Link>
-
-              <Link
-                href="/dashboard/sandbox"
-                className="group flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-white px-7 py-3 text-sm font-semibold text-foreground transition-all duration-200 hover:border-primary/30 hover:bg-accent/60 hover:shadow-sm sm:w-auto"
-              >
-                <Bot className="h-4 w-4 text-text-secondary transition-colors group-hover:text-primary" />
-                <span>Run Scenario in Sandbox</span>
               </Link>
             </div>
           </div>
