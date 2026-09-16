@@ -37,6 +37,13 @@ export default function LandingPage() {
           </Link>
 
           <Link
+            href="/signup"
+            className="rounded-md border border-border bg-white px-3 py-1.5 text-xs font-semibold text-foreground transition-colors duration-200 hover:border-primary/30 hover:bg-accent/60"
+          >
+            Sign up
+          </Link>
+
+          <Link
             href="/dashboard"
             className="flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all duration-200 hover:bg-[#0052cc] hover:shadow-md"
           >

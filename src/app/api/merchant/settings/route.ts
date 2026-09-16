@@ -7,7 +7,6 @@ import {
   resolveAiConfig,
 } from "@/lib/ai/provider";
 import { requireMerchantAuth } from "@/lib/auth/guard";
-import { DEFAULT_MERCHANT_ID } from "@/lib/merchant/tenant";
 
 export const dynamic = "force-dynamic";
 
@@ -65,7 +64,7 @@ export async function GET(request: NextRequest) {
     const [merchant] = await db
       .select()
       .from(merchants)
-      .where(eq(merchants.id, DEFAULT_MERCHANT_ID))
+      .where(eq(merchants.id, auth.merchantId))
       .limit(1);
 
     if (!merchant) {
@@ -122,7 +121,7 @@ export async function POST(request: NextRequest) {
     const [merchant] = await db
       .select()
       .from(merchants)
-      .where(eq(merchants.id, DEFAULT_MERCHANT_ID))
+      .where(eq(merchants.id, auth.merchantId))
       .limit(1);
 
     const existingConfig = (merchant?.config as Record<string, unknown>) || {};
@@ -186,14 +185,22 @@ export async function POST(request: NextRequest) {
       ...(nextAi ? { ai: nextAi } : clearAiKey ? { ai: {} } : {}),
     };
 
+    const onboardingCompleted =
+      typeof body.onboardingCompleted === "boolean"
+        ? body.onboardingCompleted
+        : undefined;
+
     const [updated] = await db
       .update(merchants)
       .set({
-        name: name || merchant?.name || "Nimbus Gear & Electronics",
+        name: name || merchant?.name || "My Store",
         config: updatedConfig,
+        ...(onboardingCompleted !== undefined
+          ? { onboarding_completed: onboardingCompleted }
+          : {}),
         updated_at: new Date(),
       })
-      .where(eq(merchants.id, DEFAULT_MERCHANT_ID))
+      .where(eq(merchants.id, auth.merchantId))
       .returning();
 
     return NextResponse.json({

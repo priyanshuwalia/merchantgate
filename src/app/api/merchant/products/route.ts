@@ -1,8 +1,7 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { db, products } from "@/db";
 import { requireMerchantAuth } from "@/lib/auth/guard";
-import { DEFAULT_MERCHANT_ID } from "@/lib/merchant/tenant";
 import { generateId } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +14,7 @@ export async function GET(request: NextRequest) {
     const list = await db
       .select()
       .from(products)
+      .where(eq(products.merchant_id, auth.merchantId))
       .orderBy(desc(products.created_at));
 
     return NextResponse.json(list);
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
     const safeTitle = title.trim();
     const safeCategory = category.trim();
 
-    const merchantId = DEFAULT_MERCHANT_ID;
+    const merchantId = auth.merchantId;
     const variantId =
       variant_id ||
       `var_${safeTitle
@@ -107,7 +107,9 @@ export async function POST(request: NextRequest) {
       const [existing] = await db
         .select()
         .from(products)
-        .where(eq(products.id, id))
+        .where(
+          and(eq(products.id, id), eq(products.merchant_id, auth.merchantId)),
+        )
         .limit(1);
       if (!existing) {
         return NextResponse.json(
@@ -187,7 +189,11 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await db.delete(products).where(eq(products.id, id));
+    await db
+      .delete(products)
+      .where(
+        and(eq(products.id, id), eq(products.merchant_id, auth.merchantId)),
+      );
     return NextResponse.json({ success: true, deletedId: id });
   } catch (error) {
     console.error("Error deleting product:", error);

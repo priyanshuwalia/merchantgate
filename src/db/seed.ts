@@ -1,5 +1,6 @@
 import "dotenv/config";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
+import { hashPassword } from "@/lib/auth/password";
 import { DEFAULT_MERCHANT_ID } from "@/lib/merchant/tenant";
 import { agents, campaigns, db, merchants, products } from "./index";
 
@@ -14,9 +15,15 @@ export async function seedDatabase() {
     .where(eq(merchants.id, merchantId));
 
   if (existingMerchant.length === 0) {
+    const demoPasswordHash = await hashPassword(
+      process.env.DEMO_MERCHANT_PASSWORD || "demo1234",
+    );
     await db.insert(merchants).values({
       id: merchantId,
       name: "Nimbus Gear & Electronics",
+      email: "demo@nimbusgear.com",
+      password_hash: demoPasswordHash,
+      onboarding_completed: true,
       api_key_hash: "hash_demo_1234567890",
       webhook_secret:
         process.env.RAZORPAY_WEBHOOK_SECRET || "rzp_webhook_secret_default",
@@ -32,7 +39,34 @@ export async function seedDatabase() {
     });
     console.log("✅ Seeded default merchant: Nimbus Gear & Electronics");
   } else {
-    console.log("ℹ️ Default merchant already exists.");
+    // Backfill credentials for merchants seeded before signup existed.
+    const missing = await db
+      .select({ id: merchants.id })
+      .from(merchants)
+      .where(
+        and(
+          eq(merchants.id, merchantId),
+          or(eq(merchants.email, ""), isNull(merchants.email)),
+        ),
+      )
+      .limit(1);
+
+    if (missing.length > 0) {
+      const demoPasswordHash = await hashPassword(
+        process.env.DEMO_MERCHANT_PASSWORD || "demo1234",
+      );
+      await db
+        .update(merchants)
+        .set({
+          email: "demo@nimbusgear.com",
+          password_hash: demoPasswordHash,
+          onboarding_completed: true,
+        })
+        .where(eq(merchants.id, merchantId));
+      console.log("✅ Backfilled credentials for default merchant");
+    } else {
+      console.log("ℹ️ Default merchant already exists.");
+    }
   }
 
   // 2. Sample Products

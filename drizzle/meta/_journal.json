@@ -22,6 +22,13 @@
       "when": 1758032377000,
       "tag": "20260916071937_db_guards",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1758032400000,
+      "tag": "20260916120000_merchant_signup",
+      "breakpoints": true
     }
   ]
 }

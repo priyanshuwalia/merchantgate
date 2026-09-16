@@ -5,7 +5,6 @@ import { callLlm } from "@/lib/ai/llm";
 import { resolveAiConfig } from "@/lib/ai/provider";
 import { requireMerchantAuth } from "@/lib/auth/guard";
 import { rateLimitRequest } from "@/lib/auth/rate-limit";
-import { DEFAULT_MERCHANT_ID } from "@/lib/merchant/tenant";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +59,7 @@ export async function POST(request: NextRequest) {
       const [merchant] = await db
         .select()
         .from(merchants)
-        .where(eq(merchants.id, DEFAULT_MERCHANT_ID))
+        .where(eq(merchants.id, auth.merchantId))
         .limit(1);
       const config = (merchant?.config as Record<string, unknown>) || {};
       configInput = {

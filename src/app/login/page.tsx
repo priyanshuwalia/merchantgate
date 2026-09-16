@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, LockKeyhole, ShieldCheck } from "lucide-react";
+import { ArrowRight, LockKeyhole, ShieldCheck, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 
 export default function LoginPage() {
   const router = useRouter();
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,7 +30,7 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ email, password }),
       });
       if (res.ok) {
         router.replace("/dashboard");
@@ -37,11 +38,12 @@ export default function LoginPage() {
       } else {
         const data = await res.json().catch(() => ({}));
         setError(
-          data.message || "Sign-in failed. Check the password and try again.",
+          data.message ||
+            "Sign-in failed. Check your credentials and try again.",
         );
       }
     } catch {
-      setError("Sign-in failed. Check the password and try again.");
+      setError("Sign-in failed. Check your credentials and try again.");
     } finally {
       setLoading(false);
     }
@@ -83,6 +85,28 @@ export default function LoginPage() {
             <form onSubmit={onSubmit} className="space-y-5">
               <div className="space-y-1.5">
                 <label
+                  htmlFor="email"
+                  className="block text-sm font-medium text-foreground"
+                >
+                  Email address
+                </label>
+                <div className="relative">
+                  <UserRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="email"
+                    autoFocus
+                    className="pl-9"
+                    placeholder="you@store.com"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label
                   htmlFor="password"
                   className="block text-sm font-medium text-foreground"
                 >
@@ -94,8 +118,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
-                  autoFocus
-                  placeholder="Enter admin password"
+                  placeholder="Enter your password"
                 />
               </div>
 
@@ -107,7 +130,7 @@ export default function LoginPage() {
 
               <Button
                 type="submit"
-                disabled={loading || !password}
+                disabled={loading || !password || !email}
                 className="w-full"
                 size="lg"
               >
@@ -119,25 +142,26 @@ export default function LoginPage() {
 
               <div className="flex items-center gap-2 pt-1 text-xs text-text-muted">
                 <ShieldCheck className="h-3.5 w-3.5 text-[#00b874]" />
-                <span>
-                  Session-secured, HMAC-signed cookie. Demo uses
-                  <span className="font-mono text-text-secondary">
-                    {" "}
-                    MERCHANT_ADMIN_PASSWORD{" "}
-                  </span>
-                  from the environment.
-                </span>
+                <span>Session-secured, HMAC-signed cookie.</span>
               </div>
             </form>
           </CardContent>
         </Card>
 
-        <Link
-          href="/"
-          className="mt-6 text-xs font-medium text-text-muted transition-colors hover:text-primary"
-        >
-          ← Back to home
-        </Link>
+        <div className="mt-6 flex w-full items-center justify-between">
+          <Link
+            href="/"
+            className="text-xs font-medium text-text-muted transition-colors hover:text-primary"
+          >
+            ← Back to home
+          </Link>
+          <Link
+            href="/signup"
+            className="text-xs font-medium text-primary transition-colors hover:underline"
+          >
+            New to MerchantGate? Sign up
+          </Link>
+        </div>
       </div>
     </main>
   );

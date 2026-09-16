@@ -9,27 +9,44 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 // 1. Merchants
 
-export const merchants = pgTable("merchants", {
-  id: text("id").primaryKey().default(sql`'mch_' || gen_random_uuid()`),
+export const merchants = pgTable(
+  "merchants",
+  {
+    id: text("id").primaryKey().default(sql`'mch_' || gen_random_uuid()`),
 
-  name: text("name").notNull(),
+    name: text("name").notNull(),
 
-  api_key_hash: text("api_key_hash").notNull(),
+    email: text("email"),
 
-  webhook_secret: text("webhook_secret").notNull(),
+    password_hash: text("password_hash"),
 
-  status: text("status").notNull().default("active"),
+    api_key_hash: text("api_key_hash"),
 
-  config: jsonb("config").notNull().default({}),
+    webhook_secret: text("webhook_secret").notNull(),
 
-  created_at: timestamp("created_at").notNull().defaultNow(),
+    status: text("status").notNull().default("active"),
 
-  updated_at: timestamp("updated_at").notNull().defaultNow(),
-});
+    onboarding_completed: boolean("onboarding_completed")
+      .notNull()
+      .default(false),
+
+    config: jsonb("config").notNull().default({}),
+
+    created_at: timestamp("created_at").notNull().defaultNow(),
+
+    updated_at: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("idx_merchants_email_unique")
+      .on(table.email)
+      .where(sql`email IS NOT NULL`),
+  ],
+);
 
 // 1b. Campaigns (Merchant Promotions)
 

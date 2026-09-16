@@ -16,7 +16,6 @@ import {
   type MerchantAgentRuleSet,
   sanitizeMerchantRules,
 } from "@/lib/merchant/agent";
-import { DEFAULT_MERCHANT_ID } from "@/lib/merchant/tenant";
 
 export const dynamic = "force-dynamic";
 
@@ -212,7 +211,7 @@ export async function POST(request: NextRequest) {
     const [merchant] = await db
       .select()
       .from(merchants)
-      .where(eq(merchants.id, DEFAULT_MERCHANT_ID))
+      .where(eq(merchants.id, auth.merchantId))
       .limit(1);
 
     if (!merchant) {

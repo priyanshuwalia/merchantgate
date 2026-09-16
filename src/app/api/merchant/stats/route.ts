@@ -10,7 +10,6 @@ import {
   products,
 } from "@/db";
 import { requireMerchantAuth } from "@/lib/auth/guard";
-import { DEFAULT_MERCHANT_ID } from "@/lib/merchant/tenant";
 
 export const dynamic = "force-dynamic";
 
@@ -29,30 +28,43 @@ export async function GET(request: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   try {
+    const { merchantId: scopedMerchantId } = auth;
+
     // 1. Fetch Merchant
     const [merchant] = await db
       .select()
       .from(merchants)
-      .where(eq(merchants.id, DEFAULT_MERCHANT_ID))
+      .where(eq(merchants.id, scopedMerchantId))
       .limit(1);
 
     // 2. Fetch all cart mandates
     const allCarts = await db
       .select()
       .from(cartMandates)
+      .where(eq(cartMandates.merchant_id, scopedMerchantId))
       .orderBy(desc(cartMandates.created_at))
       .limit(100);
 
-    // 3. Fetch payment actions
+    // 3. Fetch payment actions scoped to this merchant's mandates
     const allPayments = await db
       .select()
       .from(paymentActions)
+      .where(
+        sql`${paymentActions.cart_mandate_id} IN (
+          SELECT id FROM cart_mandates WHERE merchant_id = ${scopedMerchantId}
+        )`,
+      )
       .orderBy(desc(paymentActions.created_at));
 
-    // 4. Fetch policy decisions
+    // 4. Fetch policy decisions scoped to this merchant's mandates
     const allDecisions = await db
       .select()
       .from(policyDecisions)
+      .where(
+        sql`${policyDecisions.cart_mandate_id} IN (
+          SELECT id FROM cart_mandates WHERE merchant_id = ${scopedMerchantId}
+        )`,
+      )
       .orderBy(desc(policyDecisions.created_at))
       .limit(100);
 
@@ -74,7 +86,10 @@ export async function GET(request: NextRequest) {
     const catalogViews = Number(viewRows[0]?.count || 0);
 
     // 6. Fetch products count & stock
-    const allProducts = await db.select().from(products);
+    const allProducts = await db
+      .select()
+      .from(products)
+      .where(eq(products.merchant_id, scopedMerchantId));
 
     // Calculations
     const completedPayments = allPayments.filter(
@@ -207,8 +222,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       merchant: {
-        id: merchant?.id || DEFAULT_MERCHANT_ID,
-        name: merchant?.name || "Nimbus Gear & Electronics",
+        id: merchant?.id || scopedMerchantId,
+        name: merchant?.name || "My Store",
         config: merchant?.config || {},
       },
       metrics: {

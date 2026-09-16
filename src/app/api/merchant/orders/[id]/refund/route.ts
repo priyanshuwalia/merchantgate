@@ -1,10 +1,9 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { db, paymentActions, refundActions } from "@/db";
 import { logAuditEvent } from "@/lib/audit/logger";
 import { requireMerchantAuth } from "@/lib/auth/guard";
 import { rateLimitRequest } from "@/lib/auth/rate-limit";
-import { DEFAULT_MERCHANT_ID } from "@/lib/merchant/tenant";
 import { refundPayment } from "@/lib/payments/razorpay";
 import { generateId, generateTraceId } from "@/lib/utils";
 
@@ -36,7 +35,11 @@ export async function POST(
     const [action] = await db
       .select()
       .from(paymentActions)
-      .where(eq(paymentActions.id, id))
+      .where(
+        sql`${paymentActions.id} = ${id} AND ${paymentActions.cart_mandate_id} IN (
+          SELECT id FROM cart_mandates WHERE merchant_id = ${auth.merchantId}
+        )`,
+      )
       .limit(1);
 
     if (!action) {
@@ -90,7 +93,7 @@ export async function POST(
         notes: {
           refundActionId: refundId,
           reason,
-          merchant: DEFAULT_MERCHANT_ID,
+          merchant: auth.merchantId,
         },
       });
 
