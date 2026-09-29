@@ -205,6 +205,7 @@ export class SimulatedBuyerAgent {
     cartMandateId: string,
     decisionId: string,
     paymentMethod = "simulated_uap",
+    extra: Record<string, unknown> = {},
   ) {
     const res = await fetch(`${baseUrl}/v1/agent/checkout/confirm`, {
       method: "POST",
@@ -213,6 +214,7 @@ export class SimulatedBuyerAgent {
         cartMandateId,
         decisionId,
         paymentMethod,
+        ...extra,
       }),
     });
 

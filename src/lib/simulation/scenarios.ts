@@ -25,6 +25,13 @@ export interface Scenario {
   description: string;
   expectedDecision: "ALLOW" | "STEP_UP" | "DENY";
   steps: SimulationStep[];
+  /**
+   * The settlement rail the scenario must run on. The sandbox route switches
+   * the merchant's `config.paymentProvider` for the duration of the run and
+   * restores it afterwards, so each scenario exercises the exact rail it
+   * describes ('stripe_card' + pm_card_visa settles a real test charge).
+   */
+  paymentProvider?: "razorpay" | "stripe";
   /** When present, this scenario runs through the autonomous runner (enables agent-to-agent negotiation). */
   autonomousConfig?: CustomSimulationConfig;
 }
@@ -243,5 +250,64 @@ export const PRESET_SCENARIOS: Record<string, Scenario> = {
       strategy: "best_match_within_budget",
       negotiateForBulk: true,
     },
+  },
+
+  happyPathStripe: {
+    id: "happyPathStripe",
+    name: "Scenario 6: Stripe Autonomous Card Payment",
+    category: "happy_path",
+    paymentProvider: "stripe",
+    description:
+      "Agent discovers merchant, verifies its mandate, and checks out a Nimbus 75 keyboard on the Stripe rail. At confirm it presents a card token (pm_card_visa) and the server creates + confirms a PaymentIntent autonomously — a real test charge appears in the Stripe Dashboard, no human checkout.",
+    expectedDecision: "ALLOW",
+    steps: [
+      {
+        type: "discover",
+        description:
+          "Fetch .well-known/agent-commerce.json and discover the stripe_test autonomous payment handler",
+      },
+      {
+        type: "search",
+        description: "Search catalogue for 'mechanical keyboard'",
+        payload: { q: "mechanical keyboard" },
+      },
+      {
+        type: "select",
+        description: "Select product variant 'kbd_nimbus_75_black_brown'",
+        payload: { variantId: "kbd_nimbus_75_black_brown" },
+      },
+      {
+        type: "verify",
+        description:
+          "Submit Intent Mandate proof with ₹5,000 budget to /v1/agent/verify",
+        payload: {
+          maxTransactionAmountMinor: 500000,
+          currency: "INR",
+        },
+      },
+      {
+        type: "checkout",
+        description:
+          "Request authoritative Cart Mandate quote on the Stripe rail (no Razorpay order created)",
+        payload: {
+          items: [
+            {
+              variantId: "kbd_nimbus_75_black_brown",
+              quantity: 1,
+              discoveryPriceMinor: 349900,
+            },
+          ],
+        },
+      },
+      {
+        type: "confirm",
+        description:
+          "Present card token pm_card_visa at /v1/agent/checkout/confirm — server confirms the PaymentIntent autonomously",
+        payload: {
+          paymentMethod: "stripe_card",
+          paymentToken: "pm_card_visa",
+        },
+      },
+    ],
   },
 };

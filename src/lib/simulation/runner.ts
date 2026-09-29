@@ -423,6 +423,7 @@ export class SimulationRunner {
             lastCartMandateId,
             lastDecisionId,
             paymentMethod,
+            step.payload ?? {},
           );
           responsePayload = res;
           // A non-settling confirm: the merchant's Surge Pricing re-priced the
@@ -461,7 +462,11 @@ export class SimulationRunner {
             };
             summary = `Created Razorpay order ${res.razorpayOrderId} via ${paymentMethod} (${res.status}) — real test checkout required.`;
           } else {
-            summary = `Settled payment action ${res.paymentActionId} via ${paymentMethod} (${res.status}).`;
+            const stripeNote =
+              res.chargeId && res.paymentIntentId
+                ? ` Stripe PaymentIntent ${res.paymentIntentId} confirmed server-side, charge ${res.chargeId} captured (${res.status}). It reflects in the Stripe Dashboard.`
+                : "";
+            summary = `Settled payment action ${res.paymentActionId} via ${paymentMethod} (${res.status}).${stripeNote}`;
           }
         }
       } catch (err) {

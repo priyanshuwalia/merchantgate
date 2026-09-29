@@ -1,7 +1,10 @@
+import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
+import { db, merchants } from "@/db";
 import type { AiConfigInput } from "@/lib/ai/provider";
 import { requireMerchantAuth } from "@/lib/auth/guard";
 import { rateLimitRequest } from "@/lib/auth/rate-limit";
+import { DEFAULT_MERCHANT_ID } from "@/lib/merchant/tenant";
 import { SimulatedBuyerAgent } from "@/lib/simulation/buyer-agent";
 import {
   type CustomSimulationConfig,
@@ -68,7 +71,7 @@ export async function POST(request: NextRequest) {
           userId: body.userId,
         });
       } else {
-        result = await runner.run(scenario);
+        result = await withRail(scenario, () => runner.run(scenario));
       }
     }
 
@@ -79,5 +82,53 @@ export async function POST(request: NextRequest) {
       { error: "Internal error executing simulation" },
       { status: 500 },
     );
+  }
+}
+
+/**
+ * The gateway is single-tenant against the default (demonstration) merchant.
+ * Scenarios may declare the settlement rail they describe: for the duration of
+ * the run we switch that merchant's `paymentProvider` (e.g. a Stripe scenario
+ * must quote + settle on the Stripe rail) and restore the previous value
+ * afterwards — even when the run throws.
+ */
+async function withRail<T>(
+  scenario: Scenario,
+  run: () => Promise<T>,
+): Promise<T> {
+  const rail = scenario.paymentProvider;
+  if (!rail) return run();
+
+  const [merchant] = await db
+    .select({ config: merchants.config })
+    .from(merchants)
+    .where(eq(merchants.id, DEFAULT_MERCHANT_ID))
+    .limit(1);
+
+  const prevConfig = (merchant?.config || {}) as Record<string, unknown>;
+  const prevRail = prevConfig.paymentProvider as string | undefined;
+
+  if (prevRail !== rail) {
+    await db
+      .update(merchants)
+      .set({
+        config: { ...prevConfig, paymentProvider: rail },
+        updated_at: new Date(),
+      })
+      .where(eq(merchants.id, DEFAULT_MERCHANT_ID));
+  }
+
+  try {
+    return await run();
+  } finally {
+    if (prevRail !== rail && prevRail) {
+      await db
+        .update(merchants)
+        .set({
+          config: { ...prevConfig, paymentProvider: prevRail },
+          updated_at: new Date(),
+        })
+        .where(eq(merchants.id, DEFAULT_MERCHANT_ID));
+    }
   }
 }

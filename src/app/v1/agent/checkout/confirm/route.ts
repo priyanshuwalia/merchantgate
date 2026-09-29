@@ -241,9 +241,15 @@ export async function POST(request: NextRequest) {
     // For a real Razorpay checkout the order must be created before any DB
     // write; for simulated UAP and Stripe the settlement commits in ONE
     // transaction (Stripe confirms the intent inside its own branch above).
+    // A stripe-rail quote carries no Razorpay order yet — if the buyer still
+    // asks for a razorpay_checkout, create the order here on demand so a real
+    // checkout link is always produced.
     let preparedPayment: Awaited<ReturnType<typeof preparePayment>> | undefined;
 
-    if (!paymentAction && paymentMethod === "razorpay_checkout") {
+    if (
+      paymentMethod === "razorpay_checkout" &&
+      (!paymentAction || !paymentAction.razorpay_order_id)
+    ) {
       if (!decision?.id) {
         return NextResponse.json(
           {
@@ -743,6 +749,8 @@ export async function POST(request: NextRequest) {
     // `payment_pending`. It becomes `completed` (paid) exclusively via a
     // verified webhook/payment capture.
     const razorpayPaymentExisted = Boolean(paymentAction);
+    const attachOrderToExisting =
+      razorpayPaymentExisted && !paymentAction!.razorpay_order_id;
     if (!razorpayPaymentExisted) {
       paymentAction = {
         id: generateId("pact"),
@@ -759,6 +767,17 @@ export async function POST(request: NextRequest) {
           razorpayKeyId: preparedPayment!.razorpayKeyId,
         },
         created_at: new Date(),
+        updated_at: new Date(),
+      };
+    } else if (attachOrderToExisting) {
+      paymentAction = {
+        ...paymentAction!,
+        razorpay_order_id: preparedPayment!.razorpayOrderId,
+        razorpay_payment_id: null,
+        provider_metadata: {
+          method: paymentMethod,
+          razorpayKeyId: preparedPayment!.razorpayKeyId,
+        },
         updated_at: new Date(),
       };
     }
@@ -793,6 +812,21 @@ export async function POST(request: NextRequest) {
                 razorpay_payment_id: rp.razorpay_payment_id,
                 provider_metadata: rp.provider_metadata,
               }),
+            ),
+          ]
+        : []),
+      ...(attachOrderToExisting
+        ? [
+            toStatement(
+              db
+                .update(paymentActions)
+                .set({
+                  razorpay_order_id: rp.razorpay_order_id,
+                  razorpay_payment_id: rp.razorpay_payment_id,
+                  provider_metadata: rp.provider_metadata,
+                  updated_at: new Date(),
+                })
+                .where(eq(paymentActions.id, rp.id)),
             ),
           ]
         : []),
