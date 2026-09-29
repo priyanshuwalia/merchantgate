@@ -64,6 +64,12 @@ export async function GET(request: NextRequest) {
       },
       paymentHandlers: [
         {
+          type: "stripe_test",
+          mode: "autonomous_agent",
+          description:
+            "Agent settles quote autonomously: present a payment-method token at /v1/agent/checkout/confirm (paymentMethod 'stripe_card') and the server confirms the PaymentIntent server-side.",
+        },
+        {
           type: "razorpay_test",
           mode: "human_present",
         },

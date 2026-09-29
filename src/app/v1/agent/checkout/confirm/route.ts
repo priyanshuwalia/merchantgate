@@ -21,6 +21,10 @@ import {
   CartSnapshotMismatchError,
   preparePayment,
 } from "@/lib/payments/orchestrator";
+import {
+  confirmStripePaymentIntent,
+  type StripePaymentResult,
+} from "@/lib/payments/stripe";
 import { generateId, generateTraceId } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -30,9 +34,19 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { cartMandateId, decisionId, paymentMethod = "simulated_uap" } = body;
+    const {
+      cartMandateId,
+      decisionId,
+      paymentMethod = "simulated_uap",
+      paymentToken,
+    } = body;
 
-    const ALLOWED_PAYMENT_METHODS = ["simulated_uap", "razorpay_checkout"];
+    const ALLOWED_PAYMENT_METHODS = [
+      "simulated_uap",
+      "razorpay_checkout",
+      "stripe_card",
+      "stripe",
+    ];
     if (!ALLOWED_PAYMENT_METHODS.includes(paymentMethod)) {
       return NextResponse.json(
         {
@@ -42,6 +56,11 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+    const isStripe =
+      paymentMethod === "stripe_card" || paymentMethod === "stripe";
+    const paymentMethodId = isStripe
+      ? String(paymentToken || body.paymentMethodId || "").trim()
+      : "";
 
     // Resolve the merchant context in ONE read: kill-switch + runtime-state
     // hydration + surge state (previously three separate reads/code paths).
@@ -58,7 +77,9 @@ export async function POST(request: NextRequest) {
 
     // Agent authentication + rate limiting (C7). In `demo` mode a missing or
     // invalid key is tolerated; in `strict` mode it is rejected outright.
-    const auth = await authenticateAgentRequest(request);
+    const auth = await authenticateAgentRequest(request, {
+      merchantConfig: context.config,
+    });
 
     if (!cartMandateId) {
       return NextResponse.json(
@@ -218,10 +239,11 @@ export async function POST(request: NextRequest) {
     }
 
     // For a real Razorpay checkout the order must be created before any DB
-    // write; for simulated UAP the whole settlement commits in ONE transaction.
+    // write; for simulated UAP and Stripe the settlement commits in ONE
+    // transaction (Stripe confirms the intent inside its own branch above).
     let preparedPayment: Awaited<ReturnType<typeof preparePayment>> | undefined;
 
-    if (!paymentAction && paymentMethod !== "simulated_uap") {
+    if (!paymentAction && paymentMethod === "razorpay_checkout") {
       if (!decision?.id) {
         return NextResponse.json(
           {
@@ -252,6 +274,326 @@ export async function POST(request: NextRequest) {
         decisionId: decision.id,
         budgetReservationId: budgetResId!,
         traceId,
+      });
+    }
+
+    if (isStripe) {
+      // ─── AUTONOMOUS STRIPE SETTLEMENT ─────────────────────────────────────
+      // The buyer agent presents a payment-method token (test: `pm_card_visa`).
+      // The server creates AND confirms a Stripe PaymentIntent in one call.
+      // On `succeeded` everything commits atomically (reservation + payment
+      // action + cart completion + inventory decrement) — the same single-txn
+      // structure as the simulated path, but against real money. Stripe
+      // `requires_action`/`processing` intents settle later via the webhook.
+      if (!paymentMethodId) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Stripe settlement requires a paymentToken from the buyer agent (test: pm_card_visa).",
+            decision: "DENY",
+            status: "payment_method_required",
+          },
+          { status: 400 },
+        );
+      }
+
+      const alreadySettled = paymentAction?.status === "completed";
+      if (alreadySettled) {
+        return NextResponse.json({
+          success: true,
+          status: "completed",
+          paymentActionId: paymentAction.id,
+          amountMinor: cart.total_minor,
+          currency: cart.currency,
+          completedAt: paymentAction.updated_at.toISOString(),
+          agentAuth: {
+            mode: auth.mode,
+            agentId: auth.agentId,
+            rateLimitRemaining: auth.rateLimitInfo.remaining,
+          },
+        });
+      }
+
+      let intent: StripePaymentResult;
+      try {
+        intent = await confirmStripePaymentIntent({
+          amountMinor: cart.total_minor,
+          currency: cart.currency,
+          paymentMethodId,
+          description: `MerchantGate order ${cartMandateId}`,
+          metadata: {
+            cartMandateId,
+            intentMandateId: cart.intent_mandate_id,
+            merchantId: cart.merchant_id,
+          },
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Stripe declined the payment.";
+        await logAuditEvent({
+          traceId,
+          actorType: "agent",
+          actorId: auth.agentId || "buyer_agent",
+          eventType: "payment_settlement_failed",
+          cartMandateId,
+          explanation: `Stripe PaymentIntent create/confirm failed: ${message}`,
+          metadata: { paymentProvider: "stripe", paymentMethodId },
+        });
+        return NextResponse.json(
+          {
+            success: false,
+            error: "STRIPE_PAYMENT_FAILED",
+            message,
+            decision: "DENY",
+            cartMandateId,
+          },
+          { status: 402 },
+        );
+      }
+
+      if (intent.status !== "succeeded") {
+        // Deferred settlement (3DS / processing) — persist the pending state so
+        // the Stripe webhook can settle it later. Amount is frozen by the cart.
+        const st = paymentAction ?? {
+          id: generateId("pact"),
+          cart_mandate_id: cartMandateId,
+          decision_id: decision?.id || decisionId || generateId("dec"),
+          budget_reservation_id: budgetResId!,
+          amount_minor: cart.total_minor,
+          currency: cart.currency,
+          status: "pending_payment" as const,
+          razorpay_order_id: intent.id,
+          razorpay_payment_id: null,
+          provider_metadata: {},
+          created_at: new Date(),
+          updated_at: new Date(),
+        };
+
+        await runTransaction([
+          ...(!reservationExists && !paymentAction
+            ? [
+                toStatement(
+                  db.insert(budgetReservations).values({
+                    id: budgetResId!,
+                    intent_mandate_id: cart.intent_mandate_id,
+                    amount_minor: cart.total_minor,
+                    status: "reserved",
+                    expires_at: cart.quote_expires_at,
+                  }),
+                ),
+              ]
+            : []),
+          toStatement(
+            paymentAction
+              ? db
+                  .update(paymentActions)
+                  .set({
+                    status: "pending_payment",
+                    razorpay_order_id: intent.id,
+                    provider_metadata: {
+                      ...((paymentAction.provider_metadata as Record<
+                        string,
+                        unknown
+                      >) || {}),
+                      provider: "stripe",
+                      method: "stripe_card",
+                      paymentIntentId: intent.id,
+                      clientSecret: intent.clientSecret || null,
+                    },
+                    updated_at: new Date(),
+                  })
+                  .where(eq(paymentActions.id, paymentAction.id))
+              : db.insert(paymentActions).values({
+                  id: st.id,
+                  cart_mandate_id: st.cart_mandate_id,
+                  decision_id: st.decision_id,
+                  budget_reservation_id: st.budget_reservation_id,
+                  amount_minor: st.amount_minor,
+                  currency: st.currency,
+                  status: "pending_payment",
+                  razorpay_order_id: st.razorpay_order_id,
+                  razorpay_payment_id: st.razorpay_payment_id,
+                  provider_metadata: {
+                    provider: "stripe",
+                    method: "stripe_card",
+                    paymentIntentId: intent.id,
+                    clientSecret: intent.clientSecret || null,
+                  },
+                }),
+          ),
+          toStatement(
+            db
+              .update(cartMandates)
+              .set({ status: "payment_pending" })
+              .where(eq(cartMandates.id, cartMandateId)),
+          ),
+        ]);
+
+        return NextResponse.json({
+          success: false,
+          status: intent.status,
+          requiresClientAction: intent.status === "requires_action",
+          paymentIntentId: intent.id,
+          clientSecret: intent.clientSecret || null,
+          amountMinor: cart.total_minor,
+          currency: cart.currency,
+          cartMandateId,
+          agentAuth: {
+            mode: auth.mode,
+            agentId: auth.agentId,
+          },
+        });
+      }
+
+      // ─── succeeded: atomic settlement ──────────────────────────────────────
+      const items =
+        (cart.items as Array<{ variantId: string; quantity: number }>) || [];
+      const stripePaymentId = intent.chargeId || intent.id;
+      const pa = paymentAction ?? {
+        id: generateId("pact"),
+        cart_mandate_id: cartMandateId,
+        decision_id: decision?.id || decisionId || generateId("dec"),
+        budget_reservation_id: budgetResId!,
+        amount_minor: cart.total_minor,
+        currency: cart.currency,
+        status: "pending_payment" as const,
+        razorpay_order_id: null,
+        razorpay_payment_id: null,
+        provider_metadata: {},
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      const paId = pa.id;
+
+      const statements: DbStatement[] = [
+        ...(!reservationExists && !paymentAction
+          ? [
+              toStatement(
+                db.insert(budgetReservations).values({
+                  id: budgetResId!,
+                  intent_mandate_id: cart.intent_mandate_id,
+                  amount_minor: cart.total_minor,
+                  status: "reserved",
+                  expires_at: cart.quote_expires_at,
+                }),
+              ),
+            ]
+          : []),
+        toStatement(
+          paymentAction
+            ? db
+                .update(paymentActions)
+                .set({
+                  status: "completed",
+                  razorpay_order_id: intent.id,
+                  razorpay_payment_id: stripePaymentId,
+                  provider_metadata: {
+                    ...((paymentAction.provider_metadata as Record<
+                      string,
+                      unknown
+                    >) || {}),
+                    provider: "stripe",
+                    method: "stripe_card",
+                    paymentIntentId: intent.id,
+                    chargeId: stripePaymentId,
+                    isMock: intent.isMock,
+                  },
+                  updated_at: new Date(),
+                })
+                .where(eq(paymentActions.id, paId))
+            : db.insert(paymentActions).values({
+                id: paId,
+                cart_mandate_id: pa.cart_mandate_id,
+                decision_id: pa.decision_id,
+                budget_reservation_id: pa.budget_reservation_id,
+                amount_minor: pa.amount_minor,
+                currency: pa.currency,
+                status: "completed",
+                razorpay_order_id: intent.id,
+                razorpay_payment_id: stripePaymentId,
+                provider_metadata: {
+                  provider: "stripe",
+                  method: "stripe_card",
+                  paymentIntentId: intent.id,
+                  chargeId: stripePaymentId,
+                  isMock: intent.isMock,
+                },
+              }),
+        ),
+        toStatement(
+          db
+            .update(cartMandates)
+            .set({ status: "completed" })
+            .where(eq(cartMandates.id, cartMandateId)),
+        ),
+        ...(items.length > 0 && !alreadySettled
+          ? [
+              toStatement(
+                db
+                  .update(products)
+                  .set({
+                    stock_quantity: sql`GREATEST(0, ${products.stock_quantity} - data.qty)`,
+                  })
+                  .from(
+                    sql`(VALUES ${sql.join(
+                      items.map(
+                        (i) =>
+                          sql`(${i.variantId}::text, ${i.quantity}::bigint)`,
+                      ),
+                      sql.raw(", "),
+                    )}) AS data(variant_id, qty)`,
+                  )
+                  .where(sql`${products.variant_id} = data.variant_id`),
+              ),
+            ]
+          : []),
+      ];
+      await runTransaction(statements);
+
+      await logAuditEvent({
+        traceId,
+        actorType: "agent",
+        actorId: auth.agentId || "buyer_agent",
+        eventType: "payment_settled",
+        cartMandateId,
+        decisionId,
+        paymentActionId: paId,
+        explanation: `Autonomous Stripe payment of ${cart.currency} ${(cart.total_minor / 100).toFixed(2)} completed by buyer agent. PaymentIntent ${intent.id} confirmed server-side (${
+          intent.isMock ? "simulated" : "real Stripe test charge"
+        }).`,
+        providerRefs: {
+          stripePaymentIntent: intent.id,
+          stripeChargeId: stripePaymentId,
+          method: "stripe_card",
+        },
+        metadata: {
+          paymentProvider: "stripe",
+          agentAuthMode: auth.mode,
+          rateLimitRemaining: auth.rateLimitInfo.remaining,
+          isMock: intent.isMock,
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        paymentActionId: paId,
+        status: "completed",
+        paymentIntentId: intent.id,
+        chargeId: stripePaymentId,
+        razorpayOrderId: intent.id,
+        razorpayPaymentId: stripePaymentId,
+        amountMinor: cart.total_minor,
+        currency: cart.currency,
+        completedAt: new Date().toISOString(),
+        expiresAt: cart.quote_expires_at.toISOString(),
+        agentAuth: {
+          mode: auth.mode,
+          agentId: auth.agentId,
+          rateLimitRemaining: auth.rateLimitInfo.remaining,
+        },
       });
     }
 
@@ -349,7 +691,7 @@ export async function POST(request: NextRequest) {
                           sql`(${i.variantId}::text, ${i.quantity}::bigint)`,
                       ),
                       sql.raw(", "),
-                    )}) AS data(variant_id text, qty bigint)`,
+                    )}) AS data(variant_id, qty)`,
                   )
                   .where(sql`${products.variant_id} = data.variant_id`),
               ),

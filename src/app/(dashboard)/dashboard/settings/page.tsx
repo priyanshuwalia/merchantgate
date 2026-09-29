@@ -44,6 +44,7 @@ export default function SettingsPage() {
 
   const [merchantName, setMerchantName] = useState("Nimbus Gear & Electronics");
   const [currency, setCurrency] = useState("INR");
+  const [paymentProvider, setPaymentProvider] = useState("razorpay");
   const [razorpayKeyId, setRazorpayKeyId] = useState("");
   const [webhookUrl, setWebhookUrl] = useState(
     "https://your-domain.com/api/webhooks/razorpay",
@@ -75,6 +76,7 @@ export default function SettingsPage() {
         if (data.name) setMerchantName(data.name);
         if (data.config) {
           setCurrency(data.config.currency || "INR");
+          setPaymentProvider(data.config.paymentProvider || "razorpay");
           setRazorpayKeyId(data.config.razorpayKeyId || "");
           if (data.config.webhookUrl) setWebhookUrl(data.config.webhookUrl);
         }
@@ -103,6 +105,7 @@ export default function SettingsPage() {
         body: JSON.stringify({
           name: merchantName,
           currency,
+          paymentProvider,
           razorpayKeyId,
           webhookUrl,
           ai: {
@@ -161,7 +164,7 @@ export default function SettingsPage() {
     <div className="flex-1 flex flex-col">
       <Header
         title="Merchant & Gateway Settings"
-        description="Configure your merchant identity, AI models, Razorpay payment keys, and agent discovery endpoints."
+        description="Configure your merchant identity, AI models, payment rail, and agent discovery endpoints."
       />
 
       <div className="p-6 space-y-6 max-w-4xl">
@@ -402,9 +405,10 @@ export default function SettingsPage() {
               <div className="flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-primary" />
                 <div>
-                  <CardTitle>Razorpay Payment Gateway</CardTitle>
+                  <CardTitle>Payment Gateway</CardTitle>
                   <CardDescription>
-                    Live test mode credentials for processing agent checkouts.
+                    Which rail settles agent checkouts — Card (Stripe) or UPI /
+                    Wallets (Razorpay).
                   </CardDescription>
                 </div>
               </div>
@@ -412,41 +416,84 @@ export default function SettingsPage() {
                 variant="outline"
                 className="text-primary font-mono text-[10px]"
               >
-                Test Mode
+                {paymentProvider === "stripe" ? "Autonomous" : "Test Mode"}
               </Badge>
             </div>
 
             <div className="space-y-4">
               <div>
                 <label
-                  htmlFor="razorpay-key-id"
+                  htmlFor="payment-provider"
                   className="block text-foreground font-medium mb-1"
                 >
-                  Razorpay Key ID
+                  Payment Provider
                 </label>
-                <Input
-                  id="razorpay-key-id"
-                  placeholder="rzp_test_..."
-                  value={razorpayKeyId}
-                  onChange={(e) => setRazorpayKeyId(e.target.value)}
-                  className="font-mono"
-                />
+                <select
+                  id="payment-provider"
+                  value={paymentProvider}
+                  onChange={(e) => setPaymentProvider(e.target.value)}
+                  className="h-9 w-full px-3 rounded-md bg-white border border-input text-sm text-foreground focus:outline-none focus:border-primary focus:shadow-[0_0_0_3px_rgba(0,102,255,0.1)]"
+                >
+                  <option value="razorpay">
+                    Razorpay (UPI, wallets, cards)
+                  </option>
+                  <option value="stripe">
+                    Stripe Card (autonomous agent payment)
+                  </option>
+                </select>
+                <p className="mt-1 text-[11px] text-text-muted">
+                  {paymentProvider === "stripe"
+                    ? "Buyer agents settle server-side with a card token — no human checkout. Simulated offline until STRIPE_SECRET_KEY is set."
+                    : "Buyer agents receive a Razorpay checkout/UPI link to complete."}
+                </p>
               </div>
 
-              <div>
-                <label
-                  htmlFor="webhook-url"
-                  className="block text-foreground font-medium mb-1"
-                >
-                  Webhook Receiver URL
-                </label>
-                <Input
-                  id="webhook-url"
-                  value={webhookUrl}
-                  onChange={(e) => setWebhookUrl(e.target.value)}
-                  className="font-mono"
-                />
-              </div>
+              {paymentProvider === "razorpay" ? (
+                <>
+                  <div>
+                    <label
+                      htmlFor="razorpay-key-id"
+                      className="block text-foreground font-medium mb-1"
+                    >
+                      Razorpay Key ID
+                    </label>
+                    <Input
+                      id="razorpay-key-id"
+                      placeholder="rzp_test_..."
+                      value={razorpayKeyId}
+                      onChange={(e) => setRazorpayKeyId(e.target.value)}
+                      className="font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="webhook-url"
+                      className="block text-foreground font-medium mb-1"
+                    >
+                      Webhook Receiver URL
+                    </label>
+                    <Input
+                      id="webhook-url"
+                      value={webhookUrl}
+                      onChange={(e) => setWebhookUrl(e.target.value)}
+                      className="font-mono"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-lg bg-muted border border-border p-3 text-[11px] text-text-muted leading-relaxed font-mono">
+                  <p className="font-medium text-foreground mb-1">
+                    Stripe webhook endpoint
+                  </p>
+                  <p>POST {`/api/webhooks/stripe`}</p>
+                  <p className="mt-1.5 text-[11px] text-text-muted">
+                    Configure this URL in the Stripe dashboard and set{" "}
+                    <span className="text-primary">STRIPE_WEBHOOK_SECRET</span>{" "}
+                    in your environment.
+                  </p>
+                </div>
+              )}
             </div>
           </Card>
 

@@ -112,6 +112,7 @@ export async function POST(request: NextRequest) {
       maxAgentTransactionAmount,
       priceSlippageToleranceBps,
       razorpayKeyId,
+      paymentProvider,
       webhookUrl,
       merchantAgentRules,
       ai,
@@ -175,6 +176,10 @@ export async function POST(request: NextRequest) {
         razorpayKeyId ||
         (existingConfig.razorpayKeyId as string) ||
         process.env.RAZORPAY_KEY_ID,
+      paymentProvider:
+        paymentProvider === "stripe" || paymentProvider === "razorpay"
+          ? paymentProvider
+          : (existingConfig.paymentProvider as string) || "razorpay",
       webhookUrl,
       merchantAgentRules: merchantAgentRules
         ? {

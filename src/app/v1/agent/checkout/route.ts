@@ -88,6 +88,11 @@ export async function POST(request: Request) {
     }
     const merchantConfig = context.config;
     const merchantAgentRules = getMerchantAgentRules(merchantConfig);
+    // Payment provider selection (multi-rail settlement). `stripe` is the
+    // autonomous rail: no payment intent is created at quote time — the buyer
+    // agent creates + confirms a Stripe PaymentIntent at /checkout/confirm.
+    const paymentProvider =
+      merchantConfig.paymentProvider === "stripe" ? "stripe" : "razorpay";
 
     // Agent authentication + rate limiting (C7). Rejects unauthenticated money
     // requests in strict mode; throttles everywhere.
@@ -482,7 +487,8 @@ export async function POST(request: Request) {
     // 6. Reserve budget & (for ALLOW) create payment intent. The Razorpay order
     // is created against the rows we are about to persist — they are passed in
     // memory so preparePayment needs NO re-reads (-3 round-trips) — then the
-    // whole checkout commit is one transaction.
+    // whole checkout commit is one transaction. For the stripe rail we skip the
+    // intent creation entirely (autonomous settlement happens at confirm).
     if (createsPaymentIntent) {
       budgetReservationId = generateId("bres");
 
@@ -504,25 +510,49 @@ export async function POST(request: Request) {
         created_at: new Date(),
       } as unknown as typeof policyDecisions.$inferSelect;
 
-      const preparedPayment = await preparePayment({
-        cartMandateId,
-        decisionId,
-        budgetReservationId,
-        traceId,
-        allowQueuedApproval: queuedForApproval,
-        knownCart,
-        knownDecision,
-      });
+      const preparedPayment =
+        paymentProvider === "razorpay"
+          ? await preparePayment({
+              cartMandateId,
+              decisionId,
+              budgetReservationId,
+              traceId,
+              allowQueuedApproval: queuedForApproval,
+              knownCart,
+              knownDecision,
+            })
+          : undefined;
 
-      if (!preparedPayment.order) {
+      if (paymentProvider === "razorpay" && !preparedPayment?.order) {
         throw new Error(
           "Unexpected reused payment action during new checkout proposal.",
         );
       }
 
-      razorpayOrderId = preparedPayment.razorpayOrderId;
-      razorpayKeyId = preparedPayment.razorpayKeyId;
+      razorpayOrderId = preparedPayment?.razorpayOrderId;
+      razorpayKeyId = preparedPayment?.razorpayKeyId;
       paymentActionId = generateId("pact");
+
+      // The buyer agent settles a stripe quote autonomously at
+      // /checkout/confirm by creating + confirming a PaymentIntent against this
+      // `pending_payment` action. No provider order is created at quote time.
+      const paymentActionValues = {
+        id: paymentActionId!,
+        cart_mandate_id: cartMandateId,
+        decision_id: decisionId,
+        budget_reservation_id: budgetReservationId!,
+        amount_minor: grandTotalMinor,
+        currency,
+        // Every ALLOW payment is `pending_payment` until it settles: a human
+        // completes a Razorpay test checkout, or the buyer agent settles via
+        // Stripe autonomously.
+        status: "pending_payment" as const,
+        razorpay_order_id: razorpayOrderId ?? null,
+        provider_metadata:
+          paymentProvider === "stripe"
+            ? { provider: "stripe", method: "stripe_card", autonomous: true }
+            : { isMock: preparedPayment!.order!.isMock, method: "razorpay" },
+      };
 
       // Compile every write (mandate upsert, cart, decision, reservation,
       // payment action) into one ATOMIC transaction over a single HTTP request.
@@ -566,21 +596,7 @@ export async function POST(request: Request) {
                 expires_at: quoteExpiresAt,
               }),
             ),
-            toStatement(
-              db.insert(paymentActions).values({
-                id: paymentActionId!,
-                cart_mandate_id: cartMandateId,
-                decision_id: decisionId,
-                budget_reservation_id: budgetReservationId!,
-                amount_minor: grandTotalMinor,
-                currency,
-                // Every ALLOW payment is `pending_payment` until the human completes a
-                // real Razorpay test checkout in the browser.
-                status: "pending_payment",
-                razorpay_order_id: razorpayOrderId!,
-                provider_metadata: { isMock: preparedPayment.order.isMock },
-              }),
-            ),
+            toStatement(db.insert(paymentActions).values(paymentActionValues)),
           ]);
           checkoutCommitted = true;
         } catch (error) {
@@ -658,7 +674,9 @@ export async function POST(request: Request) {
     const auditExplanation = queuedForApproval
       ? `Generated quote ${cartMandateId} for ${currency} ${(grandTotalMinor / 100).toFixed(2)}. Amount exceeds merchant limit — queued for merchant approval. Decision: STEP_UP [MERCHANT_LIMIT_EXCEEDED]. Payment intent ${razorpayOrderId} created (pending approval).`
       : isAllowed
-        ? `Generated quote ${cartMandateId} for ${currency} ${(grandTotalMinor / 100).toFixed(2)}. Decision: ${finalPolicyResult.decision}. Razorpay order created: ${razorpayOrderId}${campaignNote}${upsellNote}`
+        ? paymentProvider === "stripe"
+          ? `Generated quote ${cartMandateId} for ${currency} ${(grandTotalMinor / 100).toFixed(2)}. Decision: ${finalPolicyResult.decision}. Autonomous Stripe settlement pending at /checkout/confirm (paymentProvider: stripe, no Razorpay order).${campaignNote}${upsellNote}`
+          : `Generated quote ${cartMandateId} for ${currency} ${(grandTotalMinor / 100).toFixed(2)}. Decision: ${finalPolicyResult.decision}. Razorpay order created: ${razorpayOrderId}${campaignNote}${upsellNote}`
         : `Generated quote ${cartMandateId} for ${currency} ${(grandTotalMinor / 100).toFixed(2)}. Decision: ${finalPolicyResult.decision} [${finalPolicyResult.reasonCodes.join(", ")}]. NO_RAZORPAY_ORDER_CREATED.`;
 
     await logAuditEvent({
@@ -687,6 +705,7 @@ export async function POST(request: Request) {
         razorpayOrderId: razorpayOrderId || null,
         surgeActive,
         queuedForApproval,
+        paymentProvider,
         noRazorpayOrderCreated: !createsPaymentIntent,
         campaignsApplied: campaignsApplied.map((i) => ({
           campaignId: i.campaign?.id,

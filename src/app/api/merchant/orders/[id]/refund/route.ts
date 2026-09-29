@@ -5,6 +5,10 @@ import { logAuditEvent } from "@/lib/audit/logger";
 import { requireMerchantAuth } from "@/lib/auth/guard";
 import { rateLimitRequest } from "@/lib/auth/rate-limit";
 import { refundPayment } from "@/lib/payments/razorpay";
+import {
+  isStripePaymentAction,
+  refundStripePayment,
+} from "@/lib/payments/stripe";
 import { generateId, generateTraceId } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -77,16 +81,49 @@ export async function POST(
 
     const refundId = generateId("ref");
     const paymentId = action.razorpay_payment_id || "";
-    const isRealPayment =
-      paymentId.startsWith("pay_") && !paymentId.includes("sim");
+    const orderIntentRef = action.razorpay_order_id || "";
+    const isStripeAction = isStripePaymentAction(action);
+    const isRealStripePayment =
+      isStripeAction &&
+      orderIntentRef.startsWith("pi_") &&
+      !orderIntentRef.includes("sim");
+    const isRealRazorpayPayment =
+      !isStripeAction &&
+      paymentId.startsWith("pay_") &&
+      !paymentId.includes("sim");
 
     let razorpayRefundId: string | null = null;
     let provider = "simulated";
 
-    // B4: when the order was actually captured by Razorpay (real payment id)
-    // AND the merchant has configured keys, issue a REAL refund via the
-    // Razorpay API. The webhook then reconciles refund.* events idempotently.
-    if (isRealPayment) {
+    // B4: when the order was actually captured by the provider (real payment
+    // id) AND the merchant has configured keys, issue a REAL refund via the
+    // provider API. The provider webhook then reconciles refund events
+    // idempotently. Stripe refunds target the PaymentIntent; Razorpay refunds
+    // target the captured payment id.
+    if (isRealStripePayment) {
+      const refund = await refundStripePayment({
+        paymentIntentId: orderIntentRef,
+        amountMinor: action.amount_minor,
+        metadata: {
+          refundActionId: refundId,
+          merchant: auth.merchantId,
+        },
+      });
+
+      if (refund) {
+        razorpayRefundId = refund.id;
+        provider = "stripe";
+      } else {
+        return NextResponse.json(
+          {
+            error:
+              "Stripe refund failed to create. The payment is captured and can be retried.",
+            paymentActionId: action.id,
+          },
+          { status: 502 },
+        );
+      }
+    } else if (isRealRazorpayPayment) {
       const refund = await refundPayment({
         paymentId,
         amountMinor: action.amount_minor,
@@ -113,7 +150,7 @@ export async function POST(
         );
       }
     } else {
-      // Simulated settlement fallback for local demo (pay_sim_* / no keys).
+      // Simulated settlement fallback for local demo (pay_sim_*/pi_sim_*/no keys).
       razorpayRefundId = `rfrp_sim_${generateId()}`;
     }
 
@@ -144,14 +181,18 @@ export async function POST(
       cartMandateId: action.cart_mandate_id,
       explanation: `Issued full refund of ${action.currency} ${(action.amount_minor / 100).toFixed(2)} via ${provider}. Reason: ${reason}`,
       providerRefs: {
-        razorpayRefundId,
-        razorpayPaymentId: paymentId,
+        [provider === "stripe" ? "stripeRefundId" : "razorpayRefundId"]:
+          razorpayRefundId,
+        stripePaymentIntent: isStripeAction
+          ? action.razorpay_order_id
+          : undefined,
+        razorpayPaymentId: isStripeAction ? undefined : paymentId,
         provider,
       },
       metadata: {
         refundId,
         provider,
-        isRealPayment,
+        isRealPayment: isRealStripePayment || isRealRazorpayPayment,
         amountMinor: action.amount_minor,
       },
     });
@@ -160,6 +201,7 @@ export async function POST(
       success: true,
       refundId,
       razorpayRefundId,
+      stripeRefundId: provider === "stripe" ? razorpayRefundId : undefined,
       amountMinor: action.amount_minor,
       currency: action.currency,
       status: "completed",
