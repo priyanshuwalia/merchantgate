@@ -1,0 +1,2503 @@
+{
+  "merchant": {
+    "id": "mch_nimbus_gear_001",
+    "name": "Nimbus Gear & Electronics",
+    "config": {
+      "ai": {
+        "model": "openai/gpt-4o-mini",
+        "apiKey": "[redacted]",
+        "baseUrl": "",
+        "provider": "openrouter"
+      },
+      "currency": "INR",
+      "campaigns": [
+        {
+          "id": "cmp_01m1m6kcaf3vz5dn03svwe1gds",
+          "name": "Accessory Week",
+          "type": "CATEGORY_DISCOUNT",
+          "endsAt": "2026-09-10T17:55:52.270Z",
+          "status": "active",
+          "category": "accessories",
+          "startsAt": "2026-09-03T17:54:52.270Z",
+          "createdAt": "2026-09-03T17:55:52.270Z",
+          "description": "10% off all accessories for AI-agent purchases — pairs with keyboards, mice, laptops and monitors.",
+          "discountBps": 1000,
+          "targetAudience": "AI buyer agents"
+        },
+        {
+          "id": "cmp_01m1m6kcag612km84d3qr7a8y6",
+          "name": "Desk Setup Bundle",
+          "type": "BUNDLE_DISCOUNT",
+          "endsAt": "2026-09-10T17:55:52.272Z",
+          "status": "active",
+          "startsAt": "2026-09-03T17:54:52.272Z",
+          "createdAt": "2026-09-03T17:55:52.270Z",
+          "variantIds": [
+            "acc_nimbus_deskmat",
+            "acc_nimbus_switch_set",
+            "acc_headphone_stand",
+            "acc_nimbus_stand_alu",
+            "acc_lap_sleeve"
+          ],
+          "description": "Buy 2+ accessories together and get an extra 7% off the bundle — learnable checkout basket builder.",
+          "discountBps": 700,
+          "targetAudience": "AI buyer agents building complete desk setups"
+        }
+      ],
+      "runtimeState": {
+        "surge": null,
+        "negotiationSessions": [
+          {
+            "id": "neg_01m1q1hj8j8sg84frgw5sjqwsr",
+            "items": [
+              {
+                "title": "Nimbus Pro Wireless Ultralight Gaming Mouse",
+                "category": "electronics",
+                "quantity": 7,
+                "variantId": "mse_nimbus_pro_white",
+                "unitAmountMinor": 189900
+              }
+            ],
+            "round": 3,
+            "status": "agreed",
+            "agentId": "agt_apollo_buyer_v1",
+            "createdAt": 1788553513234,
+            "expiresAt": 1788554413234,
+            "maxRounds": 4,
+            "merchantId": "mch_nimbus_gear_001",
+            "transcript": [
+              {
+                "actor": "buyer_agent",
+                "message": "I want 7 units of 'Nimbus Pro Wireless Ultralight Gaming Mouse' at list ₹1899.00. What's your best bulk price?",
+                "timestamp": "2026-09-04T20:25:13.234Z"
+              },
+              {
+                "actor": "merchant_agent",
+                "message": "Nimbus Merchant Agent: Thank you for your interest in the Nimbus Pro Wireless Ultralight Gaming Mouse. I can confirm a 7.0% discount, bringing the unit price to ₹1,766.07.",
+                "outcome": "COUNTER_OFFER",
+                "timestamp": "2026-09-04T20:25:13.235Z",
+                "offeredDiscountBps": 700
+              },
+              {
+                "actor": "buyer_agent",
+                "message": "Push to 9.5% and my mandate clears today.",
+                "timestamp": "2026-09-04T20:25:16.158Z",
+                "offeredDiscountBps": 950
+              },
+              {
+                "actor": "merchant_agent",
+                "message": "Nimbus Merchant Agent: Thank you for your offer. I can confirm a 10.0% discount, resulting in a unit price of ₹1,709.10 for the Nimbus Pro Wireless Ultralight Gaming Mouse.",
+                "outcome": "COUNTER_OFFER",
+                "timestamp": "2026-09-04T20:25:16.158Z",
+                "offeredDiscountBps": 1000
+              },
+              {
+                "actor": "buyer_agent",
+                "message": "Your latest offer works. Locking 10.0%.",
+                "timestamp": "2026-09-04T20:25:18.244Z"
+              },
+              {
+                "actor": "merchant_agent",
+                "message": "Nimbus Merchant Agent: Thank you for confirming the agreement. The final terms include a 10.0% discount, resulting in a unit price of ₹1,709.10.",
+                "outcome": "AGREED",
+                "timestamp": "2026-09-04T20:25:18.245Z",
+                "offeredDiscountBps": 1000
+              }
+            ],
+            "currentDiscountBps": 1000,
+            "requiresMerchantApproval": false
+          },
+          {
+            "id": "neg_01m1q1zgc2q7drhcppmwex1t7r",
+            "items": [
+              {
+                "title": "Nimbus Pro Wireless Ultralight Gaming Mouse",
+                "category": "electronics",
+                "quantity": 7,
+                "variantId": "mse_nimbus_pro_white",
+                "unitAmountMinor": 189900
+              }
+            ],
+            "round": 3,
+            "status": "agreed",
+            "agentId": "agt_apollo_buyer_v1",
+            "createdAt": 1788553970050,
+            "expiresAt": 1788554870050,
+            "maxRounds": 4,
+            "merchantId": "mch_nimbus_gear_001",
+            "transcript": [
+              {
+                "actor": "buyer_agent",
+                "message": "I want 7 units of 'Nimbus Pro Wireless Ultralight Gaming Mouse' at list ₹1899.00. What's your best bulk price?",
+                "timestamp": "2026-09-04T20:32:50.050Z"
+              },
+              {
+                "actor": "merchant_agent",
+                "message": "Nimbus Merchant Agent: Thank you for your interest. I can confirm a discount of 7.0%, with a unit price of ₹1,766.07 for the Nimbus Pro Wireless Ultralight Gaming Mouse.",
+                "outcome": "COUNTER_OFFER",
+                "timestamp": "2026-09-04T20:32:50.050Z",
+                "offeredDiscountBps": 700
+              },
+              {
+                "actor": "buyer_agent",
+                "message": "Push to 9.5% and my mandate clears today.",
+                "timestamp": "2026-09-04T20:32:53.279Z",
+                "offeredDiscountBps": 950
+              },
+              {
+                "actor": "merchant_agent",
+                "message": "Nimbus Merchant Agent: Thank you for your proposal. I can confirm a discount of 10.0%, with a unit price of ₹1,709.10 for the Nimbus Pro Wireless Ultralight Gaming Mouse.",
+                "outcome": "COUNTER_OFFER",
+                "timestamp": "2026-09-04T20:32:53.279Z",
+                "offeredDiscountBps": 1000
+              },
+              {
+                "actor": "buyer_agent",
+                "message": "Your latest offer works. Locking 10.0%.",
+                "timestamp": "2026-09-04T20:32:56.047Z"
+              },
+              {
+                "actor": "merchant_agent",
+                "message": "Nimbus Merchant Agent: Thank you for your agreement. The deal is confirmed with a discount of 10.0% and a unit price of ₹1,709.10.",
+                "outcome": "AGREED",
+                "timestamp": "2026-09-04T20:32:56.047Z",
+                "offeredDiscountBps": 1000
+              }
+            ],
+            "currentDiscountBps": 1000,
+            "requiresMerchantApproval": false
+          }
+        ]
+      },
+      "razorpayKeyId": "[redacted]",
+      "aiSalesEnabled": true,
+      "paymentProvider": "razorpay",
+      "merchantAgentRules": {
+        "enabled": true,
+        "agentName": "Nimbus Merchant Agent",
+        "maxDiscountBps": 1300,
+        "bulkDiscountBps": 700,
+        "bulkMinQuantity": 5,
+        "minimumMarginBps": 500,
+        "bulkDiscountEnabled": true,
+        "inventoryInstruction": "Give 7% off when AI buyers order at least 5 units",
+        "negotiableCategories": [
+          "electronics",
+          "audio",
+          "accessories",
+          "computers"
+        ],
+        "requireApprovalAboveDiscountBps": 1100
+      },
+      "agentRequiresApproval": false,
+      "autoProcessAgentOrders": false,
+      "maxAgentTransactionAmount": 500000,
+      "priceSlippageToleranceBps": 200
+    }
+  },
+  "metrics": {
+    "totalGmvMinor": 73541221,
+    "totalGmvFormatted": "₹7,35,412.21",
+    "totalTransactions": 100,
+    "completedOrders": 49,
+    "activeProposals": 0,
+    "conversionRate": 49,
+    "stepUpRequests": 4,
+    "allowedRequests": 71,
+    "deniedRequests": 25,
+    "productsCount": 13,
+    "totalStock": 1505
+  },
+  "attribution": {
+    "aiMinor": 812666,
+    "humanMinor": 1706599,
+    "aiAllTimeMinor": 73541221,
+    "isDemoHuman": true,
+    "isDemoData": false,
+    "weekLabel": "this week",
+    "headline": "₹8,126.66 in AI-driven sales this week"
+  },
+  "funnel": {
+    "catalogViews": 220,
+    "cartsCreated": 100,
+    "policyApproved": 71,
+    "paid": 49,
+    "isDemoData": false
+  },
+  "topSkus": [
+    {
+      "variantId": "kbd_nimbus_75_black_brown",
+      "title": "Nimbus 75 Mechanical Keyboard (Gateron Brown)",
+      "units": 53,
+      "revenueMinor": 17372530
+    },
+    {
+      "variantId": "mse_nimbus_pro_white",
+      "title": "Nimbus Pro Wireless Ultralight Gaming Mouse",
+      "units": 46,
+      "revenueMinor": 8051760
+    },
+    {
+      "variantId": "aud_nimbus_anc_pro",
+      "title": "Nimbus Studio ANC Wireless Headphones",
+      "units": 4,
+      "revenueMinor": 2414377
+    },
+    {
+      "variantId": "acc_nimbus_charger",
+      "title": "Nimbus 65W GaN USB-C Fast Charger",
+      "units": 4,
+      "revenueMinor": 62010
+    },
+    {
+      "variantId": "acc_nimbus_stand_alu",
+      "title": "Ergonomic Aluminum Foldable Laptop Stand",
+      "units": 3,
+      "revenueMinor": 389700
+    }
+  ],
+  "categories": [
+    {
+      "name": "accessories",
+      "count": 8
+    },
+    {
+      "name": "electronics",
+      "count": 3
+    },
+    {
+      "name": "computers",
+      "count": 1
+    },
+    {
+      "name": "audio",
+      "count": 1
+    }
+  ],
+  "recentAudit": [
+    {
+      "id": 778,
+      "trace_id": "trace_01m3pw14kbzax64x5wsaccmq0d",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T15:20:17.369Z",
+      "actor_type": "merchant",
+      "actor_id": "mch_nimbus_gear_001",
+      "event_type": "checkout_quote_generated",
+      "intent_mandate_id": "int_01m3pw11vf3yrbc7pzkv0wwq0p",
+      "cart_mandate_id": "cart_01m3pw15qcz46bq65xzdzcvk43",
+      "decision_id": "dec_01m3pw15qf071v3z6n0xvxfa4g",
+      "payment_action_id": "pact_01m3pw1620egz0y8mtazzd4a1c",
+      "reason_codes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+      "provider_refs": {},
+      "snapshot_hash": "151c04e6873a217dba1789e86f3e39075a2a34d7225f9382ab7482b761fe7b62",
+      "explanation": "Generated quote cart_01m3pw15qcz46bq65xzdzcvk43 for INR 4128.82. Decision: ALLOW. Razorpay order created: order_Thtqi5cUeUsxE6",
+      "metadata": {
+        "agentId": "anonymous_agent",
+        "itemCount": 1,
+        "totalMinor": 412882,
+        "surgeActive": false,
+        "agentAuthMode": "demo",
+        "paymentProvider": "razorpay",
+        "razorpayOrderId": "order_Thtqi5cUeUsxE6",
+        "campaignsApplied": [],
+        "cartSnapshotHash": "695710c8ac4b1c040bc6af2fb21b55063b2623c331e6412f51bbd10d47371a9b",
+        "queuedForApproval": false,
+        "merchantAgentRules": {
+          "enabled": true,
+          "agentName": "Nimbus Merchant Agent",
+          "upsellEnabled": true,
+          "maxDiscountBps": 1300,
+          "maxUpsellItems": 2,
+          "bulkDiscountBps": 700,
+          "bulkMinQuantity": 5,
+          "maxUpsellOffers": 3,
+          "minAffinityScore": 0.3,
+          "minimumMarginBps": 500,
+          "upsellCategories": ["accessories"],
+          "maxBasketUpliftBps": 4000,
+          "bulkDiscountEnabled": true,
+          "inventoryInstruction": "Give 7% off when AI buyers order at least 5 units",
+          "negotiableCategories": [
+            "electronics",
+            "audio",
+            "accessories",
+            "computers"
+          ],
+          "requireApprovalAboveDiscountBps": 1100
+        },
+        "rateLimitRemaining": 58,
+        "acceptedUpsellOffer": null,
+        "negotiationSessionId": null,
+        "negotiatedDiscountBps": null,
+        "noRazorpayOrderCreated": false,
+        "rollingBudgetUsageMinor": 0,
+        "merchantAgentNegotiations": [
+          {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"],
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "lineDiscountMinor": 0,
+            "unitDiscountMinor": 0,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 349900
+          }
+        ]
+      }
+    },
+    {
+      "id": 777,
+      "trace_id": "trace_01m3pw1410zeg8qcvra11h8jxp",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T15:20:15.659Z",
+      "actor_type": "agent",
+      "actor_id": "agt_apollo_buyer_v1",
+      "event_type": "agent_verification",
+      "intent_mandate_id": "int_01m3pw11vf3yrbc7pzkv0wwq0p",
+      "cart_mandate_id": null,
+      "decision_id": null,
+      "payment_action_id": null,
+      "reason_codes": ["PROOF_VERIFIED", "AGENT_AND_MANDATE_VERIFIED"],
+      "provider_refs": {},
+      "snapshot_hash": "1dbd0a12b332b830fd1a9ad54175996e3d93ce9eaf918e9a58798de440acc7e7",
+      "explanation": "Agent agt_apollo_buyer_v1 and Intent Mandate int_01m3pw11vf3yrbc7pzkv0wwq0p verified successfully.",
+      "metadata": {
+        "decision": "ALLOW",
+        "agentAuthMode": "demo",
+        "verificationId": "ver_01m3pw1498ta1pg2dxrbkc4t7z",
+        "rateLimitRemaining": 59
+      }
+    },
+    {
+      "id": 774,
+      "trace_id": "trace_01m3pvng0a93s2cfe9zycay4fz",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T15:13:54.789Z",
+      "actor_type": "merchant",
+      "actor_id": "mch_nimbus_gear_001",
+      "event_type": "checkout_quote_flagged_or_denied",
+      "intent_mandate_id": "int_01m3pvnedvecnnq0jbmfxfdxzt",
+      "cart_mandate_id": "cart_01m3pvnge839cvjefk049h8dc5",
+      "decision_id": "dec_01m3pvngeayxzy815p6nqnt7wc",
+      "payment_action_id": null,
+      "reason_codes": [
+        "TRANSACTION_LIMIT_EXCEEDED",
+        "ROLLING_BUDGET_EXHAUSTED",
+        "ROLLING_BUDGET_REMAINING_2000000"
+      ],
+      "provider_refs": {},
+      "snapshot_hash": "a698b5f72a67a9491c2976425e058b67525dcbfc4875446563f9ea96fdf66d87",
+      "explanation": "Generated quote cart_01m3pvnge839cvjefk049h8dc5 for INR 153398.82. Decision: DENY [TRANSACTION_LIMIT_EXCEEDED, ROLLING_BUDGET_EXHAUSTED, ROLLING_BUDGET_REMAINING_2000000]. NO_RAZORPAY_ORDER_CREATED.",
+      "metadata": {
+        "agentId": "anonymous_agent",
+        "itemCount": 1,
+        "totalMinor": 15339882,
+        "surgeActive": false,
+        "agentAuthMode": "demo",
+        "paymentProvider": "razorpay",
+        "razorpayOrderId": null,
+        "campaignsApplied": [],
+        "cartSnapshotHash": "fc04f3802d0cbf48ee706dd565687d4a77ef492d15037ea089542d2b33680a50",
+        "queuedForApproval": false,
+        "merchantAgentRules": {
+          "enabled": true,
+          "agentName": "Nimbus Merchant Agent",
+          "upsellEnabled": true,
+          "maxDiscountBps": 1300,
+          "maxUpsellItems": 2,
+          "bulkDiscountBps": 700,
+          "bulkMinQuantity": 5,
+          "maxUpsellOffers": 3,
+          "minAffinityScore": 0.3,
+          "minimumMarginBps": 500,
+          "upsellCategories": ["accessories"],
+          "maxBasketUpliftBps": 4000,
+          "bulkDiscountEnabled": true,
+          "inventoryInstruction": "Give 7% off when AI buyers order at least 5 units",
+          "negotiableCategories": [
+            "electronics",
+            "audio",
+            "accessories",
+            "computers"
+          ],
+          "requireApprovalAboveDiscountBps": 1100
+        },
+        "rateLimitRemaining": 55,
+        "acceptedUpsellOffer": null,
+        "negotiationSessionId": null,
+        "negotiatedDiscountBps": null,
+        "noRazorpayOrderCreated": true,
+        "rollingBudgetUsageMinor": 0,
+        "merchantAgentNegotiations": [
+          {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"],
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "lineDiscountMinor": 0,
+            "unitDiscountMinor": 0,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 12999900
+          }
+        ]
+      }
+    },
+    {
+      "id": 773,
+      "trace_id": "trace_01m3pvnfgxya0geaaj5nemqzwf",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T15:13:54.145Z",
+      "actor_type": "agent",
+      "actor_id": "agt_apollo_buyer_v1",
+      "event_type": "agent_verification",
+      "intent_mandate_id": "int_01m3pvnedvecnnq0jbmfxfdxzt",
+      "cart_mandate_id": null,
+      "decision_id": null,
+      "payment_action_id": null,
+      "reason_codes": ["PROOF_VERIFIED", "AGENT_AND_MANDATE_VERIFIED"],
+      "provider_refs": {},
+      "snapshot_hash": "70678f8a5f8a2e0b29092aa55fa1de98d78938d0059b4abb795faf3c7ce67402",
+      "explanation": "Agent agt_apollo_buyer_v1 and Intent Mandate int_01m3pvnedvecnnq0jbmfxfdxzt verified successfully.",
+      "metadata": {
+        "decision": "ALLOW",
+        "agentAuthMode": "demo",
+        "verificationId": "ver_01m3pvnfpkef871zvahew91mkn",
+        "rateLimitRemaining": 56
+      }
+    },
+    {
+      "id": 770,
+      "trace_id": "trace_01m3pvmpbkkezmkk5ge9pr3b6j",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T15:13:28.782Z",
+      "actor_type": "merchant",
+      "actor_id": "mch_nimbus_gear_001",
+      "event_type": "checkout_quote_generated",
+      "intent_mandate_id": "int_01m3pvmmjmrzxqsymm376wpgt0",
+      "cart_mandate_id": "cart_01m3pvmpty20hrv7em7h52avb2",
+      "decision_id": "dec_01m3pvmpv2ckv3xyag3n5bhbfs",
+      "payment_action_id": "pact_01m3pvmq149c3b8d1gdkwkmh36",
+      "reason_codes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+      "provider_refs": {},
+      "snapshot_hash": "e0a7a3597f0910d282e74a4e8b058d425b1f76cb69ae2fdf63876f769f80d38c",
+      "explanation": "Generated quote cart_01m3pvmpty20hrv7em7h52avb2 for INR 4128.82. Decision: ALLOW. Razorpay order created: order_ThtjW5B3LZtOmP",
+      "metadata": {
+        "agentId": "anonymous_agent",
+        "itemCount": 1,
+        "totalMinor": 412882,
+        "surgeActive": false,
+        "agentAuthMode": "demo",
+        "paymentProvider": "razorpay",
+        "razorpayOrderId": "order_ThtjW5B3LZtOmP",
+        "campaignsApplied": [],
+        "cartSnapshotHash": "31f5e5daae6a7c6b0bc54568d3c53c0c4c2dfb93b6fce0fbddb8ecb5ed7daadf",
+        "queuedForApproval": false,
+        "merchantAgentRules": {
+          "enabled": true,
+          "agentName": "Nimbus Merchant Agent",
+          "upsellEnabled": true,
+          "maxDiscountBps": 1300,
+          "maxUpsellItems": 2,
+          "bulkDiscountBps": 700,
+          "bulkMinQuantity": 5,
+          "maxUpsellOffers": 3,
+          "minAffinityScore": 0.3,
+          "minimumMarginBps": 500,
+          "upsellCategories": ["accessories"],
+          "maxBasketUpliftBps": 4000,
+          "bulkDiscountEnabled": true,
+          "inventoryInstruction": "Give 7% off when AI buyers order at least 5 units",
+          "negotiableCategories": [
+            "electronics",
+            "audio",
+            "accessories",
+            "computers"
+          ],
+          "requireApprovalAboveDiscountBps": 1100
+        },
+        "rateLimitRemaining": 58,
+        "acceptedUpsellOffer": null,
+        "negotiationSessionId": null,
+        "negotiatedDiscountBps": null,
+        "noRazorpayOrderCreated": false,
+        "rollingBudgetUsageMinor": 0,
+        "merchantAgentNegotiations": [
+          {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"],
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "lineDiscountMinor": 0,
+            "unitDiscountMinor": 0,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 349900
+          }
+        ]
+      }
+    },
+    {
+      "id": 769,
+      "trace_id": "trace_01m3pvmnsthw8zgdmzt1t49rf5",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T15:13:27.875Z",
+      "actor_type": "agent",
+      "actor_id": "agt_apollo_buyer_v1",
+      "event_type": "agent_verification",
+      "intent_mandate_id": "int_01m3pvmmjmrzxqsymm376wpgt0",
+      "cart_mandate_id": null,
+      "decision_id": null,
+      "payment_action_id": null,
+      "reason_codes": ["PROOF_VERIFIED", "AGENT_AND_MANDATE_VERIFIED"],
+      "provider_refs": {},
+      "snapshot_hash": "dc2d3db0f635d5f81647c486eca27f8267a48d3537bcbf851bafccf271a40124",
+      "explanation": "Agent agt_apollo_buyer_v1 and Intent Mandate int_01m3pvmmjmrzxqsymm376wpgt0 verified successfully.",
+      "metadata": {
+        "decision": "ALLOW",
+        "agentAuthMode": "demo",
+        "verificationId": "ver_01m3pvmp1rfhtjqg1p3n550g4z",
+        "rateLimitRemaining": 59
+      }
+    },
+    {
+      "id": 765,
+      "trace_id": "trace_01m3pnpygaq174qnqm47pe45pf",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T13:29:50.665Z",
+      "actor_type": "system",
+      "actor_id": "stripe_webhook",
+      "event_type": "webhook_payment_captured",
+      "intent_mandate_id": null,
+      "cart_mandate_id": "cart_01m3pnpvxjabjkpbgkd976twtm",
+      "decision_id": null,
+      "payment_action_id": "pact_01m3pnpvxqf8ahcq31qxevm8pw",
+      "reason_codes": [],
+      "provider_refs": {
+        "stripeChargeId": "ch_3UL16OFHKLEAj0tS0JcYIcXW",
+        "stripePaymentIntent": "pi_3UL16OFHKLEAj0tS0QLDesR7"
+      },
+      "snapshot_hash": "2f5045965a54868f8570c6b877ac5b88eba898e57db51f754c536db320dae540",
+      "explanation": "Stripe PaymentIntent pi_3UL16OFHKLEAj0tS0QLDesR7 succeeded (already settled; no re-processing). Charge ch_3UL16OFHKLEAj0tS0JcYIcXW captured via webhook.",
+      "metadata": {}
+    },
+    {
+      "id": 764,
+      "trace_id": "trace_01m3pnpw3t0ky2609ezx7nbvfk",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T13:29:49.803Z",
+      "actor_type": "agent",
+      "actor_id": "anonymous_agent",
+      "event_type": "payment_settled",
+      "intent_mandate_id": null,
+      "cart_mandate_id": "cart_01m3pnpvxjabjkpbgkd976twtm",
+      "decision_id": "dec_01m3pnpvxm418d0dhy4chrqcqj",
+      "payment_action_id": "pact_01m3pnpvxqf8ahcq31qxevm8pw",
+      "reason_codes": [],
+      "provider_refs": {
+        "method": "stripe_card",
+        "stripeChargeId": "ch_3UL16OFHKLEAj0tS0JcYIcXW",
+        "stripePaymentIntent": "pi_3UL16OFHKLEAj0tS0QLDesR7"
+      },
+      "snapshot_hash": "a658bf53a9cd83a1f7a9f5562a212307937eacccde3177ed4941b9f501d5391d",
+      "explanation": "Autonomous Stripe payment of INR 4128.82 completed by buyer agent. PaymentIntent pi_3UL16OFHKLEAj0tS0QLDesR7 confirmed server-side (real Stripe test charge).",
+      "metadata": {
+        "isMock": false,
+        "agentAuthMode": "demo",
+        "paymentProvider": "stripe",
+        "rateLimitRemaining": 57
+      }
+    },
+    {
+      "id": 763,
+      "trace_id": "trace_01m3pnpvemnhxbjz98rmxbpbkn",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T13:29:47.835Z",
+      "actor_type": "merchant",
+      "actor_id": "mch_nimbus_gear_001",
+      "event_type": "checkout_quote_generated",
+      "intent_mandate_id": "int_01m3pnpssa17mzvjh6c8ke9yzw",
+      "cart_mandate_id": "cart_01m3pnpvxjabjkpbgkd976twtm",
+      "decision_id": "dec_01m3pnpvxm418d0dhy4chrqcqj",
+      "payment_action_id": "pact_01m3pnpvxqf8ahcq31qxevm8pw",
+      "reason_codes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+      "provider_refs": {},
+      "snapshot_hash": "943dba197f62bb27b96a67ebdc2d3da4474ea3c8ec1c428f39e6d9bff0805faf",
+      "explanation": "Generated quote cart_01m3pnpvxjabjkpbgkd976twtm for INR 4128.82. Decision: ALLOW. Autonomous Stripe settlement pending at /checkout/confirm (paymentProvider: stripe, no Razorpay order).",
+      "metadata": {
+        "agentId": "anonymous_agent",
+        "itemCount": 1,
+        "totalMinor": 412882,
+        "surgeActive": false,
+        "agentAuthMode": "demo",
+        "paymentProvider": "stripe",
+        "razorpayOrderId": null,
+        "campaignsApplied": [],
+        "cartSnapshotHash": "d9f55122a93dbca2157f059174c6c06e19142510f077aea12b501ba0a112d462",
+        "queuedForApproval": false,
+        "merchantAgentRules": {
+          "enabled": true,
+          "agentName": "Nimbus Merchant Agent",
+          "upsellEnabled": true,
+          "maxDiscountBps": 1300,
+          "maxUpsellItems": 2,
+          "bulkDiscountBps": 700,
+          "bulkMinQuantity": 5,
+          "maxUpsellOffers": 3,
+          "minAffinityScore": 0.3,
+          "minimumMarginBps": 500,
+          "upsellCategories": ["accessories"],
+          "maxBasketUpliftBps": 4000,
+          "bulkDiscountEnabled": true,
+          "inventoryInstruction": "Give 7% off when AI buyers order at least 5 units",
+          "negotiableCategories": [
+            "electronics",
+            "audio",
+            "accessories",
+            "computers"
+          ],
+          "requireApprovalAboveDiscountBps": 1100
+        },
+        "rateLimitRemaining": 58,
+        "acceptedUpsellOffer": null,
+        "negotiationSessionId": null,
+        "negotiatedDiscountBps": null,
+        "noRazorpayOrderCreated": false,
+        "rollingBudgetUsageMinor": 0,
+        "merchantAgentNegotiations": [
+          {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"],
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "lineDiscountMinor": 0,
+            "unitDiscountMinor": 0,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 349900
+          }
+        ]
+      }
+    },
+    {
+      "id": 762,
+      "trace_id": "trace_01m3pnpv06kt3cp4fzm7nyq7hs",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T13:29:47.165Z",
+      "actor_type": "agent",
+      "actor_id": "agt_apollo_buyer_v1",
+      "event_type": "agent_verification",
+      "intent_mandate_id": "int_01m3pnpssa17mzvjh6c8ke9yzw",
+      "cart_mandate_id": null,
+      "decision_id": null,
+      "payment_action_id": null,
+      "reason_codes": ["PROOF_VERIFIED", "AGENT_AND_MANDATE_VERIFIED"],
+      "provider_refs": {},
+      "snapshot_hash": "a9ec5e2ba0e846e7dd9651c256bfd1d235e38addf813128b2bc9b1df6db1fb96",
+      "explanation": "Agent agt_apollo_buyer_v1 and Intent Mandate int_01m3pnpssa17mzvjh6c8ke9yzw verified successfully.",
+      "metadata": {
+        "decision": "ALLOW",
+        "agentAuthMode": "demo",
+        "verificationId": "ver_01m3pnpv62pmcva9n3kdgfnj2s",
+        "rateLimitRemaining": 59
+      }
+    },
+    {
+      "id": 759,
+      "trace_id": "trace_01m3pngg6gsmthxy59nw3p5c23",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T13:26:19.836Z",
+      "actor_type": "merchant",
+      "actor_id": "mch_nimbus_gear_001",
+      "event_type": "checkout_quote_generated",
+      "intent_mandate_id": "int_01m3pnggfnf94bpq7ge6a6xk7h",
+      "cart_mandate_id": "cart_01m3pnggrttt5bktxm3vdqbft1",
+      "decision_id": "dec_01m3pnggrw6mg1gdam2emmnh0w",
+      "payment_action_id": "pact_01m3pnggry1qp8y9m24005p81b",
+      "reason_codes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+      "provider_refs": {},
+      "snapshot_hash": "6df0fc6d965fe4090534266275722740b77c1157eccf4e18ba2a2f334872496b",
+      "explanation": "Generated quote cart_01m3pnggrttt5bktxm3vdqbft1 for INR 4128.82. Decision: ALLOW. Autonomous Stripe settlement pending at /checkout/confirm (paymentProvider: stripe, no Razorpay order).",
+      "metadata": {
+        "agentId": "agt_selfheal",
+        "itemCount": 1,
+        "totalMinor": 412882,
+        "surgeActive": false,
+        "agentAuthMode": "demo",
+        "paymentProvider": "stripe",
+        "razorpayOrderId": null,
+        "campaignsApplied": [],
+        "cartSnapshotHash": "b0a8bc8b33fbb471218c3e2c927c94d80badd970e62194dd2704ef528549f3f4",
+        "queuedForApproval": false,
+        "merchantAgentRules": {
+          "enabled": true,
+          "agentName": "Nimbus Merchant Agent",
+          "upsellEnabled": true,
+          "maxDiscountBps": 1300,
+          "maxUpsellItems": 2,
+          "bulkDiscountBps": 700,
+          "bulkMinQuantity": 5,
+          "maxUpsellOffers": 3,
+          "minAffinityScore": 0.3,
+          "minimumMarginBps": 500,
+          "upsellCategories": ["accessories"],
+          "maxBasketUpliftBps": 4000,
+          "bulkDiscountEnabled": true,
+          "inventoryInstruction": "Give 7% off when AI buyers order at least 5 units",
+          "negotiableCategories": [
+            "electronics",
+            "audio",
+            "accessories",
+            "computers"
+          ],
+          "requireApprovalAboveDiscountBps": 1100
+        },
+        "rateLimitRemaining": 59,
+        "acceptedUpsellOffer": null,
+        "negotiationSessionId": null,
+        "negotiatedDiscountBps": null,
+        "noRazorpayOrderCreated": false,
+        "rollingBudgetUsageMinor": 0,
+        "merchantAgentNegotiations": [
+          {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"],
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "lineDiscountMinor": 0,
+            "unitDiscountMinor": 0,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 349900
+          }
+        ]
+      }
+    },
+    {
+      "id": 758,
+      "trace_id": "trace_01m3png9n6nw72h7x7j9tz3ag3",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T13:26:13.231Z",
+      "actor_type": "merchant",
+      "actor_id": "mch_nimbus_gear_001",
+      "event_type": "checkout_quote_generated",
+      "intent_mandate_id": "int_01m3png7ymrzpntenn2j2pb6an",
+      "cart_mandate_id": "cart_01m3pnga4gfmj52dvywzwvbt8z",
+      "decision_id": "dec_01m3pnga4jqnew9h9xjrczn7e0",
+      "payment_action_id": "pact_01m3pngab8gy6tmk4dzqcb7zmt",
+      "reason_codes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+      "provider_refs": {},
+      "snapshot_hash": "2816ce16d512160a8294789a74aacc3d27141193244a7a678f9485e5d2d32b54",
+      "explanation": "Generated quote cart_01m3pnga4gfmj52dvywzwvbt8z for INR 4128.82. Decision: ALLOW. Razorpay order created: order_ThruDPYDQ013ZQ",
+      "metadata": {
+        "agentId": "anonymous_agent",
+        "itemCount": 1,
+        "totalMinor": 412882,
+        "surgeActive": false,
+        "agentAuthMode": "demo",
+        "paymentProvider": "razorpay",
+        "razorpayOrderId": "order_ThruDPYDQ013ZQ",
+        "campaignsApplied": [],
+        "cartSnapshotHash": "f3c2078d0924a02738cc0aa3c14561a7a98b88a1d71ebc394c1ae63ac23dae42",
+        "queuedForApproval": false,
+        "merchantAgentRules": {
+          "enabled": true,
+          "agentName": "Nimbus Merchant Agent",
+          "upsellEnabled": true,
+          "maxDiscountBps": 1300,
+          "maxUpsellItems": 2,
+          "bulkDiscountBps": 700,
+          "bulkMinQuantity": 5,
+          "maxUpsellOffers": 3,
+          "minAffinityScore": 0.3,
+          "minimumMarginBps": 500,
+          "upsellCategories": ["accessories"],
+          "maxBasketUpliftBps": 4000,
+          "bulkDiscountEnabled": true,
+          "inventoryInstruction": "Give 7% off when AI buyers order at least 5 units",
+          "negotiableCategories": [
+            "electronics",
+            "audio",
+            "accessories",
+            "computers"
+          ],
+          "requireApprovalAboveDiscountBps": 1100
+        },
+        "rateLimitRemaining": 58,
+        "acceptedUpsellOffer": null,
+        "negotiationSessionId": null,
+        "negotiatedDiscountBps": null,
+        "noRazorpayOrderCreated": false,
+        "rollingBudgetUsageMinor": 0,
+        "merchantAgentNegotiations": [
+          {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"],
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "lineDiscountMinor": 0,
+            "unitDiscountMinor": 0,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 349900
+          }
+        ]
+      }
+    },
+    {
+      "id": 757,
+      "trace_id": "trace_01m3png94w6qna0rwdkr3kwr8e",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T13:26:12.338Z",
+      "actor_type": "agent",
+      "actor_id": "agt_apollo_buyer_v1",
+      "event_type": "agent_verification",
+      "intent_mandate_id": "int_01m3png7ymrzpntenn2j2pb6an",
+      "cart_mandate_id": null,
+      "decision_id": null,
+      "payment_action_id": null,
+      "reason_codes": ["PROOF_VERIFIED", "AGENT_AND_MANDATE_VERIFIED"],
+      "provider_refs": {},
+      "snapshot_hash": "96abf7fea397267adcb8aacda372eda4dd89e460d1c1d5ed696921668488680e",
+      "explanation": "Agent agt_apollo_buyer_v1 and Intent Mandate int_01m3png7ymrzpntenn2j2pb6an verified successfully.",
+      "metadata": {
+        "decision": "ALLOW",
+        "agentAuthMode": "demo",
+        "verificationId": "ver_01m3png9c4bfc6svr3vfc1d1f7",
+        "rateLimitRemaining": 59
+      }
+    },
+    {
+      "id": 754,
+      "trace_id": "trace_01m3pn4jt99e9ra6xfkrdsgk35",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T13:19:49.192Z",
+      "actor_type": "merchant",
+      "actor_id": "mch_nimbus_gear_001",
+      "event_type": "checkout_quote_generated",
+      "intent_mandate_id": "int_01m3pn4gk4n2xqbn6cc2aw0134",
+      "cart_mandate_id": "cart_01m3pn4k9fvy4251vbq2cqsasw",
+      "decision_id": "dec_01m3pn4k9hdt6ekg9ytatcvp3c",
+      "payment_action_id": "pact_01m3pn4k9jhs9wp91n47qgvmkb",
+      "reason_codes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+      "provider_refs": {},
+      "snapshot_hash": "ef970b7be8cada63ddda7f66e53ed61fd7b1f6c7fd6f328a8d7de0daa2c85b51",
+      "explanation": "Generated quote cart_01m3pn4k9fvy4251vbq2cqsasw for INR 4128.82. Decision: ALLOW. Autonomous Stripe settlement pending at /checkout/confirm (paymentProvider: stripe, no Razorpay order).",
+      "metadata": {
+        "agentId": "anonymous_agent",
+        "itemCount": 1,
+        "totalMinor": 412882,
+        "surgeActive": false,
+        "agentAuthMode": "demo",
+        "paymentProvider": "stripe",
+        "razorpayOrderId": null,
+        "campaignsApplied": [],
+        "cartSnapshotHash": "93705a1ae0ce08c2dafdfe9c34a78c9da60cb7c0c993c04991cf38a3744067a6",
+        "queuedForApproval": false,
+        "merchantAgentRules": {
+          "enabled": true,
+          "agentName": "Nimbus Merchant Agent",
+          "upsellEnabled": true,
+          "maxDiscountBps": 1300,
+          "maxUpsellItems": 2,
+          "bulkDiscountBps": 700,
+          "bulkMinQuantity": 5,
+          "maxUpsellOffers": 3,
+          "minAffinityScore": 0.3,
+          "minimumMarginBps": 500,
+          "upsellCategories": ["accessories"],
+          "maxBasketUpliftBps": 4000,
+          "bulkDiscountEnabled": true,
+          "inventoryInstruction": "Give 7% off when AI buyers order at least 5 units",
+          "negotiableCategories": [
+            "electronics",
+            "audio",
+            "accessories",
+            "computers"
+          ],
+          "requireApprovalAboveDiscountBps": 1100
+        },
+        "rateLimitRemaining": 58,
+        "acceptedUpsellOffer": null,
+        "negotiationSessionId": null,
+        "negotiatedDiscountBps": null,
+        "noRazorpayOrderCreated": false,
+        "rollingBudgetUsageMinor": 0,
+        "merchantAgentNegotiations": [
+          {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"],
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "lineDiscountMinor": 0,
+            "unitDiscountMinor": 0,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 349900
+          }
+        ]
+      }
+    },
+    {
+      "id": 753,
+      "trace_id": "trace_01m3pn4jcjxkhj3h9b8cpe7qgw",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T13:19:48.504Z",
+      "actor_type": "agent",
+      "actor_id": "agt_apollo_buyer_v1",
+      "event_type": "agent_verification",
+      "intent_mandate_id": "int_01m3pn4gk4n2xqbn6cc2aw0134",
+      "cart_mandate_id": null,
+      "decision_id": null,
+      "payment_action_id": null,
+      "reason_codes": ["PROOF_VERIFIED", "AGENT_AND_MANDATE_VERIFIED"],
+      "provider_refs": {},
+      "snapshot_hash": "812621f16e4e6b24914d0c8047379e262875372b05765becb5def8628fcec1f5",
+      "explanation": "Agent agt_apollo_buyer_v1 and Intent Mandate int_01m3pn4gk4n2xqbn6cc2aw0134 verified successfully.",
+      "metadata": {
+        "decision": "ALLOW",
+        "agentAuthMode": "demo",
+        "verificationId": "ver_01m3pn4jhz7jg98f89r3gt9h0j",
+        "rateLimitRemaining": 59
+      }
+    },
+    {
+      "id": 750,
+      "trace_id": "trace_01m3pmy2zyf553v2zrvgyg04pd",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T13:16:16.719Z",
+      "actor_type": "agent",
+      "actor_id": "anonymous_agent",
+      "event_type": "upsell_offers_generated",
+      "intent_mandate_id": null,
+      "cart_mandate_id": null,
+      "decision_id": null,
+      "payment_action_id": null,
+      "reason_codes": ["NO_ELIGIBLE_UPSELL"],
+      "provider_refs": {},
+      "snapshot_hash": "174a00c51c8f67a36446e3d66d5ecae4dc29930e740b14aa823791b1691714f9",
+      "explanation": "No eligible upsell offers generated for cart.",
+      "metadata": {
+        "cartItems": 1,
+        "offerCount": 0,
+        "trimmedByCap": false,
+        "agentAuthMode": "demo",
+        "maxUpliftMinor": 9160,
+        "totalUpliftMinor": 0,
+        "cartSubtotalMinor": 22900,
+        "rateLimitRemaining": 57,
+        "marketBasketsAnalyzed": 49
+      }
+    },
+    {
+      "id": 749,
+      "trace_id": "trace_01m3pmy12jqnnct8763nxbkt0a",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T13:16:14.217Z",
+      "actor_type": "merchant",
+      "actor_id": "mch_nimbus_gear_001",
+      "event_type": "checkout_quote_generated",
+      "intent_mandate_id": "int_01m3pmxqxrr1cnfzd46cf5n5fa",
+      "cart_mandate_id": "cart_01m3pmy1czprjy17qhdfszwmbq",
+      "decision_id": "dec_01m3pmy1czcw58wa69vj1k5wqw",
+      "payment_action_id": "pact_01m3pmy1d07we2c6d4n2x5tdtg",
+      "reason_codes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+      "provider_refs": {},
+      "snapshot_hash": "7724180e3732ec17b0adbc3405ed63b9cc3a043cb10ae3a8824685ccf6b5eff8",
+      "explanation": "Generated quote cart_01m3pmy1czprjy17qhdfszwmbq for INR 270.22. Decision: ALLOW. Autonomous Stripe settlement pending at /checkout/confirm (paymentProvider: stripe, no Razorpay order).",
+      "metadata": {
+        "agentId": "anonymous_agent",
+        "itemCount": 1,
+        "totalMinor": 27022,
+        "surgeActive": false,
+        "agentAuthMode": "demo",
+        "paymentProvider": "stripe",
+        "razorpayOrderId": null,
+        "campaignsApplied": [],
+        "cartSnapshotHash": "f1ce4dc62fb3b552a90561852cdba28a9130b96eaeff18c33e9aa86bff6dd63a",
+        "queuedForApproval": false,
+        "merchantAgentRules": {
+          "enabled": true,
+          "agentName": "Nimbus Merchant Agent",
+          "upsellEnabled": true,
+          "maxDiscountBps": 1300,
+          "maxUpsellItems": 2,
+          "bulkDiscountBps": 700,
+          "bulkMinQuantity": 5,
+          "maxUpsellOffers": 3,
+          "minAffinityScore": 0.3,
+          "minimumMarginBps": 500,
+          "upsellCategories": ["accessories"],
+          "maxBasketUpliftBps": 4000,
+          "bulkDiscountEnabled": true,
+          "inventoryInstruction": "Give 7% off when AI buyers order at least 5 units",
+          "negotiableCategories": [
+            "electronics",
+            "audio",
+            "accessories",
+            "computers"
+          ],
+          "requireApprovalAboveDiscountBps": 1100
+        },
+        "rateLimitRemaining": 58,
+        "acceptedUpsellOffer": null,
+        "negotiationSessionId": null,
+        "negotiatedDiscountBps": null,
+        "noRazorpayOrderCreated": false,
+        "rollingBudgetUsageMinor": 0,
+        "merchantAgentNegotiations": [
+          {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"],
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "lineDiscountMinor": 0,
+            "unitDiscountMinor": 0,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 22900
+          }
+        ]
+      }
+    },
+    {
+      "id": 748,
+      "trace_id": "trace_01m3pmxzcxeysas3sgjqfsvz44",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T13:16:12.367Z",
+      "actor_type": "agent",
+      "actor_id": "agt_apollo_buyer_v1",
+      "event_type": "agent_verification",
+      "intent_mandate_id": "int_01m3pmxqxrr1cnfzd46cf5n5fa",
+      "cart_mandate_id": null,
+      "decision_id": null,
+      "payment_action_id": null,
+      "reason_codes": ["PROOF_VERIFIED", "AGENT_AND_MANDATE_VERIFIED"],
+      "provider_refs": {},
+      "snapshot_hash": "ecc5e0b4122514c39bf6f208c677c69abb92ba9ced96ccd2703fe31f1dbe6da3",
+      "explanation": "Agent agt_apollo_buyer_v1 and Intent Mandate int_01m3pmxqxrr1cnfzd46cf5n5fa verified successfully.",
+      "metadata": {
+        "decision": "ALLOW",
+        "agentAuthMode": "demo",
+        "verificationId": "ver_01m3pmxzhcczvzmdks47a6d6ps",
+        "rateLimitRemaining": 59
+      }
+    },
+    {
+      "id": 744,
+      "trace_id": "trace_01m3pmvjafn3sex2d7rpme03rz",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T13:14:53.566Z",
+      "actor_type": "agent",
+      "actor_id": "anonymous_agent",
+      "event_type": "upsell_offers_generated",
+      "intent_mandate_id": null,
+      "cart_mandate_id": null,
+      "decision_id": null,
+      "payment_action_id": null,
+      "reason_codes": ["NO_ELIGIBLE_UPSELL"],
+      "provider_refs": {},
+      "snapshot_hash": "a4a8c199fdd91311c5c75d4b75649f04d906a8b946c0f185b0c64a4c16fa9f63",
+      "explanation": "No eligible upsell offers generated for cart.",
+      "metadata": {
+        "cartItems": 1,
+        "offerCount": 0,
+        "trimmedByCap": false,
+        "agentAuthMode": "demo",
+        "maxUpliftMinor": 9160,
+        "totalUpliftMinor": 0,
+        "cartSubtotalMinor": 22900,
+        "rateLimitRemaining": 57,
+        "marketBasketsAnalyzed": 49
+      }
+    },
+    {
+      "id": 743,
+      "trace_id": "trace_01m3pmvhse3npvrdz4k22rwfd2",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T13:14:53.080Z",
+      "actor_type": "merchant",
+      "actor_id": "mch_nimbus_gear_001",
+      "event_type": "checkout_quote_generated",
+      "intent_mandate_id": "int_01m3pmvg9xsp5ces41mtmzf4r6",
+      "cart_mandate_id": "cart_01m3pmvj4qqetpw8942xwzghmf",
+      "decision_id": "dec_01m3pmvj4qr9pzq7mkzn6n7mxb",
+      "payment_action_id": "pact_01m3pmvj4rvzx9ymv5s24vqz5q",
+      "reason_codes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+      "provider_refs": {},
+      "snapshot_hash": "0eee00579b4788297619d7c74635d8c140d6abb427a26475a314ccb701834fe0",
+      "explanation": "Generated quote cart_01m3pmvj4qqetpw8942xwzghmf for INR 270.22. Decision: ALLOW. Autonomous Stripe settlement pending at /checkout/confirm (paymentProvider: stripe, no Razorpay order).",
+      "metadata": {
+        "agentId": "anonymous_agent",
+        "itemCount": 1,
+        "totalMinor": 27022,
+        "surgeActive": false,
+        "agentAuthMode": "demo",
+        "paymentProvider": "stripe",
+        "razorpayOrderId": null,
+        "campaignsApplied": [],
+        "cartSnapshotHash": "04b64c0e25d97fda187e45be48b0f692cad6d5d16ef50a3fad78303466661abf",
+        "queuedForApproval": false,
+        "merchantAgentRules": {
+          "enabled": true,
+          "agentName": "Nimbus Merchant Agent",
+          "upsellEnabled": true,
+          "maxDiscountBps": 1300,
+          "maxUpsellItems": 2,
+          "bulkDiscountBps": 700,
+          "bulkMinQuantity": 5,
+          "maxUpsellOffers": 3,
+          "minAffinityScore": 0.3,
+          "minimumMarginBps": 500,
+          "upsellCategories": ["accessories"],
+          "maxBasketUpliftBps": 4000,
+          "bulkDiscountEnabled": true,
+          "inventoryInstruction": "Give 7% off when AI buyers order at least 5 units",
+          "negotiableCategories": [
+            "electronics",
+            "audio",
+            "accessories",
+            "computers"
+          ],
+          "requireApprovalAboveDiscountBps": 1100
+        },
+        "rateLimitRemaining": 58,
+        "acceptedUpsellOffer": null,
+        "negotiationSessionId": null,
+        "negotiatedDiscountBps": null,
+        "noRazorpayOrderCreated": false,
+        "rollingBudgetUsageMinor": 0,
+        "merchantAgentNegotiations": [
+          {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"],
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "lineDiscountMinor": 0,
+            "unitDiscountMinor": 0,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 22900
+          }
+        ]
+      }
+    },
+    {
+      "id": 742,
+      "trace_id": "trace_01m3pmvhcb6peg50sgb7yppv9y",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T13:14:52.488Z",
+      "actor_type": "agent",
+      "actor_id": "agt_apollo_buyer_v1",
+      "event_type": "agent_verification",
+      "intent_mandate_id": "int_01m3pmvg9xsp5ces41mtmzf4r6",
+      "cart_mandate_id": null,
+      "decision_id": null,
+      "payment_action_id": null,
+      "reason_codes": ["PROOF_VERIFIED", "AGENT_AND_MANDATE_VERIFIED"],
+      "provider_refs": {},
+      "snapshot_hash": "946db18197b50863ea46676016d68b5b5e1b2ee16df089e654cd21e351f9de3e",
+      "explanation": "Agent agt_apollo_buyer_v1 and Intent Mandate int_01m3pmvg9xsp5ces41mtmzf4r6 verified successfully.",
+      "metadata": {
+        "decision": "ALLOW",
+        "agentAuthMode": "demo",
+        "verificationId": "ver_01m3pmvhgphh4aty8gt01vg0wx",
+        "rateLimitRemaining": 59
+      }
+    },
+    {
+      "id": 738,
+      "trace_id": "trace_01m3pkx7vd1mswefvjkyqca9gj",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T12:58:19.571Z",
+      "actor_type": "system",
+      "actor_id": "stripe_webhook",
+      "event_type": "webhook_orphan_payment",
+      "intent_mandate_id": null,
+      "cart_mandate_id": null,
+      "decision_id": null,
+      "payment_action_id": null,
+      "reason_codes": [],
+      "provider_refs": {
+        "stripePaymentIntent": "pi_3UL0buFHKLEAj0tS1lSwa1YV"
+      },
+      "snapshot_hash": "b4f2574e7aeb9e3b97e699fa3c5fef55109cdc628a2a272f62e907d76babdcec",
+      "explanation": "Stripe payment_intent.succeeded for unknown PaymentIntent pi_3UL0buFHKLEAj0tS1lSwa1YV. No payment action references this intent.",
+      "metadata": {}
+    },
+    {
+      "id": 737,
+      "trace_id": "trace_01m3pkwjj6hfy822tywztrsw2w",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T12:57:59.480Z",
+      "actor_type": "merchant",
+      "actor_id": "merchant_admin",
+      "event_type": "merchant_order_refunded",
+      "intent_mandate_id": null,
+      "cart_mandate_id": "cart_01m3pkw8eecqbezwy6zkddvykn",
+      "decision_id": null,
+      "payment_action_id": "pact_01m3pkw8ejkbhsz521a5zrmmmj",
+      "reason_codes": [],
+      "provider_refs": {
+        "provider": "stripe",
+        "stripeRefundId": "re_3UL0bQFHKLEAj0tS0rOQFbAc",
+        "stripePaymentIntent": "pi_3UL0bQFHKLEAj0tS040FmFAT"
+      },
+      "snapshot_hash": "6b968a5f127dccd1f90f2a475bf18f5b46c575398092ec7792f03f507d3f7f82",
+      "explanation": "Issued full refund of INR 506.22 via stripe. Reason: Live Stripe E2E refund test",
+      "metadata": {
+        "provider": "stripe",
+        "refundId": "ref_01m3pkwk3p6f6m7zr9cm2477z3",
+        "amountMinor": 50622,
+        "isRealPayment": true
+      }
+    },
+    {
+      "id": 736,
+      "trace_id": "trace_01m3pkwb5rh2x3np14f1x0c3aq",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T12:57:50.348Z",
+      "actor_type": "system",
+      "actor_id": "stripe_webhook",
+      "event_type": "webhook_payment_captured",
+      "intent_mandate_id": null,
+      "cart_mandate_id": "cart_01m3pkw8eecqbezwy6zkddvykn",
+      "decision_id": null,
+      "payment_action_id": "pact_01m3pkw8ejkbhsz521a5zrmmmj",
+      "reason_codes": [],
+      "provider_refs": {
+        "stripeChargeId": "ch_3UL0bQFHKLEAj0tS07mSLrp9",
+        "stripePaymentIntent": "pi_3UL0bQFHKLEAj0tS040FmFAT"
+      },
+      "snapshot_hash": "ac43642d4220e5dc0f123ffd71252bbe5533683e82a5c150a358bb5a7a7cb586",
+      "explanation": "Stripe PaymentIntent pi_3UL0bQFHKLEAj0tS040FmFAT succeeded (already settled; no re-processing). Charge ch_3UL0bQFHKLEAj0tS07mSLrp9 captured via webhook.",
+      "metadata": {}
+    },
+    {
+      "id": 735,
+      "trace_id": "trace_01m3pkw8rnj3hpq89xzy9m9dwa",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T12:57:49.849Z",
+      "actor_type": "agent",
+      "actor_id": "agt_live_demo",
+      "event_type": "payment_settled",
+      "intent_mandate_id": null,
+      "cart_mandate_id": "cart_01m3pkw8eecqbezwy6zkddvykn",
+      "decision_id": null,
+      "payment_action_id": "pact_01m3pkw8ejkbhsz521a5zrmmmj",
+      "reason_codes": [],
+      "provider_refs": {
+        "method": "stripe_card",
+        "stripeChargeId": "ch_3UL0bQFHKLEAj0tS07mSLrp9",
+        "stripePaymentIntent": "pi_3UL0bQFHKLEAj0tS040FmFAT"
+      },
+      "snapshot_hash": "403d6b6ee84448e61667ffab79c9815fe4a7cc185ed0906927631d2591346a2f",
+      "explanation": "Autonomous Stripe payment of INR 506.22 completed by buyer agent. PaymentIntent pi_3UL0bQFHKLEAj0tS040FmFAT confirmed server-side (real Stripe test charge).",
+      "metadata": {
+        "isMock": false,
+        "agentAuthMode": "demo",
+        "paymentProvider": "stripe",
+        "rateLimitRemaining": 58
+      }
+    },
+    {
+      "id": 734,
+      "trace_id": "trace_01m3pkw7fbjke4f8e37fan3pj0",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T12:57:47.431Z",
+      "actor_type": "merchant",
+      "actor_id": "mch_nimbus_gear_001",
+      "event_type": "checkout_quote_generated",
+      "intent_mandate_id": "int_01m3pkw84m452z7myzj9563j3h",
+      "cart_mandate_id": "cart_01m3pkw8eecqbezwy6zkddvykn",
+      "decision_id": "dec_01m3pkw8eg2brwtza2geqy8p32",
+      "payment_action_id": "pact_01m3pkw8ejkbhsz521a5zrmmmj",
+      "reason_codes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+      "provider_refs": {},
+      "snapshot_hash": "68d36dcc00efaf3387d87d839ce86fb6d7f55b30f3c44d95758bd5af5abf8c83",
+      "explanation": "Generated quote cart_01m3pkw8eecqbezwy6zkddvykn for INR 506.22. Decision: ALLOW. Autonomous Stripe settlement pending at /checkout/confirm (paymentProvider: stripe, no Razorpay order).",
+      "metadata": {
+        "agentId": "agt_live_demo",
+        "itemCount": 1,
+        "totalMinor": 50622,
+        "surgeActive": false,
+        "agentAuthMode": "demo",
+        "paymentProvider": "stripe",
+        "razorpayOrderId": null,
+        "campaignsApplied": [],
+        "cartSnapshotHash": "f5a7df5edfb09091062adb8da1ae11e97447d231b3075864e929a33769637d1f",
+        "queuedForApproval": false,
+        "merchantAgentRules": {
+          "enabled": true,
+          "agentName": "Nimbus Merchant Agent",
+          "upsellEnabled": true,
+          "maxDiscountBps": 1300,
+          "maxUpsellItems": 2,
+          "bulkDiscountBps": 700,
+          "bulkMinQuantity": 5,
+          "maxUpsellOffers": 3,
+          "minAffinityScore": 0.3,
+          "minimumMarginBps": 500,
+          "upsellCategories": ["accessories"],
+          "maxBasketUpliftBps": 4000,
+          "bulkDiscountEnabled": true,
+          "inventoryInstruction": "Give 7% off when AI buyers order at least 5 units",
+          "negotiableCategories": [
+            "electronics",
+            "audio",
+            "accessories",
+            "computers"
+          ],
+          "requireApprovalAboveDiscountBps": 1100
+        },
+        "rateLimitRemaining": 59,
+        "acceptedUpsellOffer": null,
+        "negotiationSessionId": null,
+        "negotiatedDiscountBps": null,
+        "noRazorpayOrderCreated": false,
+        "rollingBudgetUsageMinor": 0,
+        "merchantAgentNegotiations": [
+          {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"],
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "lineDiscountMinor": 0,
+            "unitDiscountMinor": 0,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 42900
+          }
+        ]
+      }
+    },
+    {
+      "id": 733,
+      "trace_id": "trace_01m3pj6vp3zw3z7d7fnrv9jkrq",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T12:28:38.252Z",
+      "actor_type": "merchant",
+      "actor_id": "merchant_admin",
+      "event_type": "merchant_order_refunded",
+      "intent_mandate_id": null,
+      "cart_mandate_id": "cart_01m3pj2yvvc8s3fk10qygbhc5x",
+      "decision_id": null,
+      "payment_action_id": "pact_01m3pj2yw01ag1hng0hmb8hqkz",
+      "reason_codes": [],
+      "provider_refs": {
+        "provider": "simulated",
+        "razorpayRefundId": "rfrp_sim_01m3pj6w8hx3471mr0endtg614",
+        "stripePaymentIntent": "pi_sim_9ab33d0f6a06ed05"
+      },
+      "snapshot_hash": "e510521bf40ec89576227bc42f365221c4311c0a62b2843ae115f2911bfd4e8f",
+      "explanation": "Issued full refund of INR 506.22 via simulated. Reason: E2E mock refund test",
+      "metadata": {
+        "provider": "simulated",
+        "refundId": "ref_01m3pj6w8f1g092fb16fkhr9pc",
+        "amountMinor": 50622,
+        "isRealPayment": false
+      }
+    },
+    {
+      "id": 732,
+      "trace_id": "trace_01m3pj6emnar9zd53eyxndzsvp",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T12:28:24.436Z",
+      "actor_type": "system",
+      "actor_id": "stripe_webhook",
+      "event_type": "webhook_payment_captured",
+      "intent_mandate_id": null,
+      "cart_mandate_id": "cart_01m3pj6dtkjxpaszpma2tc9rda",
+      "decision_id": null,
+      "payment_action_id": "pact_01m3pj6dtr3hb1t8w9kw0wx5em",
+      "reason_codes": [],
+      "provider_refs": {
+        "stripeChargeId": "ch_e2e_charge_001",
+        "stripePaymentIntent": "pi_e2e_pending_001"
+      },
+      "snapshot_hash": "480f7fa8ea8dc46aab06a12c88565bd27c5bbe2829a3aaeb8da87ac0e64624d0",
+      "explanation": "Stripe PaymentIntent pi_e2e_pending_001 succeeded. Charge ch_e2e_charge_001 captured via webhook.",
+      "metadata": {}
+    },
+    {
+      "id": 731,
+      "trace_id": "trace_01m3pj6ct2r6azsr4227jk8fqs",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T12:28:23.407Z",
+      "actor_type": "merchant",
+      "actor_id": "mch_nimbus_gear_001",
+      "event_type": "checkout_quote_generated",
+      "intent_mandate_id": "int_01m3pj6dfa783e7m588gmq5xqz",
+      "cart_mandate_id": "cart_01m3pj6dtkjxpaszpma2tc9rda",
+      "decision_id": "dec_01m3pj6dtng3b9yfc4zbcsk7ws",
+      "payment_action_id": "pact_01m3pj6dtr3hb1t8w9kw0wx5em",
+      "reason_codes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+      "provider_refs": {},
+      "snapshot_hash": "3407a0c757e0f1b0c7b0b28107f342acdabb480a109e11375f4a3112ce85a18f",
+      "explanation": "Generated quote cart_01m3pj6dtkjxpaszpma2tc9rda for INR 506.22. Decision: ALLOW. Autonomous Stripe settlement pending at /checkout/confirm (paymentProvider: stripe, no Razorpay order).",
+      "metadata": {
+        "agentId": "agt_e2e_webhook",
+        "itemCount": 1,
+        "totalMinor": 50622,
+        "surgeActive": false,
+        "agentAuthMode": "demo",
+        "paymentProvider": "stripe",
+        "razorpayOrderId": null,
+        "campaignsApplied": [],
+        "cartSnapshotHash": "c1f7af84519f3b2ae03b74e5650ae100b7766706038603feb3d00e7ad9092ff7",
+        "queuedForApproval": false,
+        "merchantAgentRules": {
+          "enabled": true,
+          "agentName": "Nimbus Merchant Agent",
+          "upsellEnabled": true,
+          "maxDiscountBps": 1300,
+          "maxUpsellItems": 2,
+          "bulkDiscountBps": 700,
+          "bulkMinQuantity": 5,
+          "maxUpsellOffers": 3,
+          "minAffinityScore": 0.3,
+          "minimumMarginBps": 500,
+          "upsellCategories": ["accessories"],
+          "maxBasketUpliftBps": 4000,
+          "bulkDiscountEnabled": true,
+          "inventoryInstruction": "Give 7% off when AI buyers order at least 5 units",
+          "negotiableCategories": [
+            "electronics",
+            "audio",
+            "accessories",
+            "computers"
+          ],
+          "requireApprovalAboveDiscountBps": 1100
+        },
+        "rateLimitRemaining": 59,
+        "acceptedUpsellOffer": null,
+        "negotiationSessionId": null,
+        "negotiatedDiscountBps": null,
+        "noRazorpayOrderCreated": false,
+        "rollingBudgetUsageMinor": 0,
+        "merchantAgentNegotiations": [
+          {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"],
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "lineDiscountMinor": 0,
+            "unitDiscountMinor": 0,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 42900
+          }
+        ]
+      }
+    },
+    {
+      "id": 730,
+      "trace_id": "trace_01m3pj53fye3r5b3h7a87kyz8y",
+      "seq_no": 1,
+      "timestamp": "2026-09-29T12:27:40.922Z",
+      "actor_type": "agent",
+      "actor_id": "agt_apollo_buyer_v1",
+      "event_type": "payment_settled",
+      "intent_mandate_id": null,
+      "cart_mandate_id": "cart_01m3pj2yvvc8s3fk10qygbhc5x",
+      "decision_id": null,
+      "payment_action_id": "pact_01m3pj2yw01ag1hng0hmb8hqkz",
+      "reason_codes": [],
+      "provider_refs": {
+        "method": "stripe_card",
+        "stripeChargeId": "ch_sim_ec914bfe79c792ef",
+        "stripePaymentIntent": "pi_sim_9ab33d0f6a06ed05"
+      },
+      "snapshot_hash": "d4bdf4fe8cf87f9937d1eebd7ce5bf92c6e430157f19266d8db01dcf8620bd30",
+      "explanation": "Autonomous Stripe payment of INR 506.22 completed by buyer agent. PaymentIntent pi_sim_9ab33d0f6a06ed05 confirmed server-side (simulated).",
+      "metadata": {
+        "isMock": true,
+        "agentAuthMode": "demo",
+        "paymentProvider": "stripe",
+        "rateLimitRemaining": 59
+      }
+    }
+  ],
+  "recentProposals": [
+    {
+      "id": "cart_01m3pw15qcz46bq65xzdzcvk43",
+      "intent_mandate_id": "int_01m3pw11vf3yrbc7pzkv0wwq0p",
+      "merchant_id": "mch_nimbus_gear_001",
+      "quote_expires_at": "2026-09-29T15:35:16.875Z",
+      "total_minor": 412882,
+      "currency": "INR",
+      "items": [
+        {
+          "title": "Nimbus 75 Mechanical Keyboard (Gateron Brown)",
+          "rating": {
+            "count": 100,
+            "average": 4.6
+          },
+          "category": "electronics",
+          "quantity": 1,
+          "productId": "prod_kbd_nimbus_75",
+          "variantId": "kbd_nimbus_75_black_brown",
+          "returnable": true,
+          "discountBps": 0,
+          "negotiation": {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"],
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "lineDiscountMinor": 0,
+            "unitDiscountMinor": 0,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 349900
+          },
+          "lineAmountMinor": 349900,
+          "unitAmountMinor": 349900,
+          "lineDiscountMinor": 0,
+          "discoveryPriceMinor": 349900,
+          "originalUnitAmountMinor": 349900
+        }
+      ],
+      "fulfillment": {
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "country": "IND",
+        "postalCode": "560001",
+        "addressLine1": "123 Indiranagar 100ft Rd"
+      },
+      "terms": {
+        "refundable": true,
+        "shippingPolicy": "Standard 2-3 Day Delivery",
+        "returnWindowDays": 7
+      },
+      "content_hash": "695710c8ac4b1c040bc6af2fb21b55063b2623c331e6412f51bbd10d47371a9b",
+      "status": "payment_pending",
+      "created_at": "2026-09-29T15:20:17.271Z",
+      "policyDecision": {
+        "decision": "ALLOW",
+        "reasonCodes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+        "decisionJSON": {
+          "money": {
+            "currency": "INR",
+            "requestedMinor": 412882,
+            "transactionLimitMinor": 500000,
+            "rollingBudgetRemainingMinor": 1587118
+          },
+          "decision": "ALLOW",
+          "expiresAt": "2026-09-29T15:35:16.876Z",
+          "explanation": "Transaction of INR 4128.82 is within authorized mandate limits.",
+          "reasonCodes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+          "cart_snapshot_hash": "695710c8ac4b1c040bc6af2fb21b55063b2623c331e6412f51bbd10d47371a9b"
+        }
+      }
+    },
+    {
+      "id": "cart_01m3pvnge839cvjefk049h8dc5",
+      "intent_mandate_id": "int_01m3pvnedvecnnq0jbmfxfdxzt",
+      "merchant_id": "mch_nimbus_gear_001",
+      "quote_expires_at": "2026-09-29T15:28:54.632Z",
+      "total_minor": 15339882,
+      "currency": "INR",
+      "items": [
+        {
+          "title": "Apex RTX Studio 16 High-Performance Gaming Laptop",
+          "rating": {
+            "count": 84,
+            "average": 3.9
+          },
+          "category": "computers",
+          "quantity": 1,
+          "productId": "prod_lap_gaming_pro",
+          "variantId": "laptop_gaming_pro",
+          "returnable": true,
+          "discountBps": 0,
+          "negotiation": {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"],
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "lineDiscountMinor": 0,
+            "unitDiscountMinor": 0,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 12999900
+          },
+          "lineAmountMinor": 12999900,
+          "unitAmountMinor": 12999900,
+          "lineDiscountMinor": 0,
+          "discoveryPriceMinor": 12999900,
+          "originalUnitAmountMinor": 12999900
+        }
+      ],
+      "fulfillment": {
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "country": "IND",
+        "postalCode": "560001",
+        "addressLine1": "123 Indiranagar 100ft Rd"
+      },
+      "terms": {
+        "refundable": true,
+        "shippingPolicy": "Standard 2-3 Day Delivery",
+        "returnWindowDays": 7
+      },
+      "content_hash": "fc04f3802d0cbf48ee706dd565687d4a77ef492d15037ea089542d2b33680a50",
+      "status": "flagged",
+      "created_at": "2026-09-29T15:13:54.681Z",
+      "policyDecision": {
+        "decision": "DENY",
+        "reasonCodes": [
+          "TRANSACTION_LIMIT_EXCEEDED",
+          "ROLLING_BUDGET_EXHAUSTED",
+          "ROLLING_BUDGET_REMAINING_2000000"
+        ],
+        "decisionJSON": {
+          "money": {
+            "currency": "INR",
+            "requestedMinor": 15339882,
+            "transactionLimitMinor": 500000,
+            "rollingBudgetRemainingMinor": 0
+          },
+          "decision": "DENY",
+          "expiresAt": "2026-09-29T15:28:54.632Z",
+          "explanation": "Transaction denied by policy: TRANSACTION_LIMIT_EXCEEDED, ROLLING_BUDGET_EXHAUSTED, ROLLING_BUDGET_REMAINING_2000000.",
+          "reasonCodes": [
+            "TRANSACTION_LIMIT_EXCEEDED",
+            "ROLLING_BUDGET_EXHAUSTED",
+            "ROLLING_BUDGET_REMAINING_2000000"
+          ],
+          "cart_snapshot_hash": "fc04f3802d0cbf48ee706dd565687d4a77ef492d15037ea089542d2b33680a50"
+        }
+      }
+    },
+    {
+      "id": "cart_01m3pvmpty20hrv7em7h52avb2",
+      "intent_mandate_id": "int_01m3pvmmjmrzxqsymm376wpgt0",
+      "merchant_id": "mch_nimbus_gear_001",
+      "quote_expires_at": "2026-09-29T15:28:28.414Z",
+      "total_minor": 412882,
+      "currency": "INR",
+      "items": [
+        {
+          "title": "Nimbus 75 Mechanical Keyboard (Gateron Brown)",
+          "rating": {
+            "count": 100,
+            "average": 4.6
+          },
+          "category": "electronics",
+          "quantity": 1,
+          "productId": "prod_kbd_nimbus_75",
+          "variantId": "kbd_nimbus_75_black_brown",
+          "returnable": true,
+          "discountBps": 0,
+          "negotiation": {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"],
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "lineDiscountMinor": 0,
+            "unitDiscountMinor": 0,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 349900
+          },
+          "lineAmountMinor": 349900,
+          "unitAmountMinor": 349900,
+          "lineDiscountMinor": 0,
+          "discoveryPriceMinor": 349900,
+          "originalUnitAmountMinor": 349900
+        }
+      ],
+      "fulfillment": {
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "country": "IND",
+        "postalCode": "560001",
+        "addressLine1": "123 Indiranagar 100ft Rd"
+      },
+      "terms": {
+        "refundable": true,
+        "shippingPolicy": "Standard 2-3 Day Delivery",
+        "returnWindowDays": 7
+      },
+      "content_hash": "31f5e5daae6a7c6b0bc54568d3c53c0c4c2dfb93b6fce0fbddb8ecb5ed7daadf",
+      "status": "payment_pending",
+      "created_at": "2026-09-29T15:13:28.675Z",
+      "policyDecision": {
+        "decision": "ALLOW",
+        "reasonCodes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+        "decisionJSON": {
+          "money": {
+            "currency": "INR",
+            "requestedMinor": 412882,
+            "transactionLimitMinor": 500000,
+            "rollingBudgetRemainingMinor": 1587118
+          },
+          "decision": "ALLOW",
+          "expiresAt": "2026-09-29T15:28:28.414Z",
+          "explanation": "Transaction of INR 4128.82 is within authorized mandate limits.",
+          "reasonCodes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+          "cart_snapshot_hash": "31f5e5daae6a7c6b0bc54568d3c53c0c4c2dfb93b6fce0fbddb8ecb5ed7daadf"
+        }
+      }
+    },
+    {
+      "id": "cart_01m3pn4k9fvy4251vbq2cqsasw",
+      "intent_mandate_id": "int_01m3pn4gk4n2xqbn6cc2aw0134",
+      "merchant_id": "mch_nimbus_gear_001",
+      "quote_expires_at": "2026-09-29T13:34:49.039Z",
+      "total_minor": 412882,
+      "currency": "INR",
+      "items": [
+        {
+          "title": "Nimbus 75 Mechanical Keyboard (Gateron Brown)",
+          "rating": {
+            "count": 100,
+            "average": 4.6
+          },
+          "category": "electronics",
+          "quantity": 1,
+          "productId": "prod_kbd_nimbus_75",
+          "variantId": "kbd_nimbus_75_black_brown",
+          "returnable": true,
+          "discountBps": 0,
+          "negotiation": {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"],
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "lineDiscountMinor": 0,
+            "unitDiscountMinor": 0,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 349900
+          },
+          "lineAmountMinor": 349900,
+          "unitAmountMinor": 349900,
+          "lineDiscountMinor": 0,
+          "discoveryPriceMinor": 349900,
+          "originalUnitAmountMinor": 349900
+        }
+      ],
+      "fulfillment": {
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "country": "IND",
+        "postalCode": "560001",
+        "addressLine1": "123 Indiranagar 100ft Rd"
+      },
+      "terms": {
+        "refundable": true,
+        "shippingPolicy": "Standard 2-3 Day Delivery",
+        "returnWindowDays": 7
+      },
+      "content_hash": "93705a1ae0ce08c2dafdfe9c34a78c9da60cb7c0c993c04991cf38a3744067a6",
+      "status": "payment_pending",
+      "created_at": "2026-09-29T13:19:49.086Z",
+      "policyDecision": {
+        "decision": "ALLOW",
+        "reasonCodes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+        "decisionJSON": {
+          "money": {
+            "currency": "INR",
+            "requestedMinor": 412882,
+            "transactionLimitMinor": 500000,
+            "rollingBudgetRemainingMinor": 1587118
+          },
+          "decision": "ALLOW",
+          "expiresAt": "2026-09-29T13:34:49.039Z",
+          "explanation": "Transaction of INR 4128.82 is within authorized mandate limits.",
+          "reasonCodes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+          "cart_snapshot_hash": "93705a1ae0ce08c2dafdfe9c34a78c9da60cb7c0c993c04991cf38a3744067a6"
+        }
+      }
+    },
+    {
+      "id": "cart_01m3pmy1czprjy17qhdfszwmbq",
+      "intent_mandate_id": "int_01m3pmxqxrr1cnfzd46cf5n5fa",
+      "merchant_id": "mch_nimbus_gear_001",
+      "quote_expires_at": "2026-09-29T13:31:14.111Z",
+      "total_minor": 27022,
+      "currency": "INR",
+      "items": [
+        {
+          "title": "Aluminum Headphone Stand with USB Hub",
+          "rating": {
+            "count": 88,
+            "average": 4.3
+          },
+          "category": "accessories",
+          "quantity": 1,
+          "productId": "prod_acc_headphone_stand",
+          "variantId": "acc_headphone_stand",
+          "returnable": true,
+          "discountBps": 0,
+          "negotiation": {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"],
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "lineDiscountMinor": 0,
+            "unitDiscountMinor": 0,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 22900
+          },
+          "lineAmountMinor": 22900,
+          "unitAmountMinor": 22900,
+          "lineDiscountMinor": 0,
+          "discoveryPriceMinor": 22900,
+          "originalUnitAmountMinor": 22900
+        }
+      ],
+      "fulfillment": {
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "country": "IND",
+        "postalCode": "560001",
+        "addressLine1": "123 Indiranagar 100ft Rd"
+      },
+      "terms": {
+        "refundable": true,
+        "shippingPolicy": "Standard 2-3 Day Delivery",
+        "returnWindowDays": 7
+      },
+      "content_hash": "f1ce4dc62fb3b552a90561852cdba28a9130b96eaeff18c33e9aa86bff6dd63a",
+      "status": "payment_pending",
+      "created_at": "2026-09-29T13:16:14.145Z",
+      "policyDecision": {
+        "decision": "ALLOW",
+        "reasonCodes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+        "decisionJSON": {
+          "money": {
+            "currency": "INR",
+            "requestedMinor": 27022,
+            "transactionLimitMinor": 1100000,
+            "rollingBudgetRemainingMinor": 4999972978
+          },
+          "decision": "ALLOW",
+          "expiresAt": "2026-09-29T13:31:14.111Z",
+          "explanation": "Transaction of INR 270.22 is within authorized mandate limits.",
+          "reasonCodes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+          "cart_snapshot_hash": "f1ce4dc62fb3b552a90561852cdba28a9130b96eaeff18c33e9aa86bff6dd63a"
+        }
+      }
+    },
+    {
+      "id": "cart_01m3pmvj4qqetpw8942xwzghmf",
+      "intent_mandate_id": "int_01m3pmvg9xsp5ces41mtmzf4r6",
+      "merchant_id": "mch_nimbus_gear_001",
+      "quote_expires_at": "2026-09-29T13:29:52.951Z",
+      "total_minor": 27022,
+      "currency": "INR",
+      "items": [
+        {
+          "title": "Aluminum Headphone Stand with USB Hub",
+          "rating": {
+            "count": 88,
+            "average": 4.3
+          },
+          "category": "accessories",
+          "quantity": 1,
+          "productId": "prod_acc_headphone_stand",
+          "variantId": "acc_headphone_stand",
+          "returnable": true,
+          "discountBps": 0,
+          "negotiation": {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"],
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "lineDiscountMinor": 0,
+            "unitDiscountMinor": 0,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 22900
+          },
+          "lineAmountMinor": 22900,
+          "unitAmountMinor": 22900,
+          "lineDiscountMinor": 0,
+          "discoveryPriceMinor": 22900,
+          "originalUnitAmountMinor": 22900
+        }
+      ],
+      "fulfillment": {
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "country": "IND",
+        "postalCode": "560001",
+        "addressLine1": "123 Indiranagar 100ft Rd"
+      },
+      "terms": {
+        "refundable": true,
+        "shippingPolicy": "Standard 2-3 Day Delivery",
+        "returnWindowDays": 7
+      },
+      "content_hash": "04b64c0e25d97fda187e45be48b0f692cad6d5d16ef50a3fad78303466661abf",
+      "status": "payment_pending",
+      "created_at": "2026-09-29T13:14:52.986Z",
+      "policyDecision": {
+        "decision": "ALLOW",
+        "reasonCodes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+        "decisionJSON": {
+          "money": {
+            "currency": "INR",
+            "requestedMinor": 27022,
+            "transactionLimitMinor": 1100000,
+            "rollingBudgetRemainingMinor": 4999972978
+          },
+          "decision": "ALLOW",
+          "expiresAt": "2026-09-29T13:29:52.951Z",
+          "explanation": "Transaction of INR 270.22 is within authorized mandate limits.",
+          "reasonCodes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+          "cart_snapshot_hash": "04b64c0e25d97fda187e45be48b0f692cad6d5d16ef50a3fad78303466661abf"
+        }
+      }
+    },
+    {
+      "id": "cart_01m3paa25xn5ce8733sghsfrvg",
+      "intent_mandate_id": "int_01m3pa9rs0kmyf0s5pqqyexhst",
+      "merchant_id": "mch_nimbus_gear_001",
+      "quote_expires_at": "2026-09-29T10:25:33.789Z",
+      "total_minor": 27022,
+      "currency": "INR",
+      "items": [
+        {
+          "title": "Aluminum Headphone Stand with USB Hub",
+          "rating": {
+            "count": 88,
+            "average": 4.3
+          },
+          "category": "accessories",
+          "quantity": 1,
+          "productId": "prod_acc_headphone_stand",
+          "variantId": "acc_headphone_stand",
+          "returnable": true,
+          "discountBps": 0,
+          "negotiation": {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"],
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "lineDiscountMinor": 0,
+            "unitDiscountMinor": 0,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 22900
+          },
+          "lineAmountMinor": 22900,
+          "unitAmountMinor": 22900,
+          "lineDiscountMinor": 0,
+          "discoveryPriceMinor": 22900,
+          "originalUnitAmountMinor": 22900
+        }
+      ],
+      "fulfillment": {
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "country": "IND",
+        "postalCode": "560001",
+        "addressLine1": "123 Indiranagar 100ft Rd"
+      },
+      "terms": {
+        "refundable": true,
+        "shippingPolicy": "Standard 2-3 Day Delivery",
+        "returnWindowDays": 7
+      },
+      "content_hash": "c9c40c309e905dcb6de4a911b6438d4f274bd1350c6939a0456482d4fb1a6d9b",
+      "status": "payment_pending",
+      "created_at": "2026-09-29T10:10:33.923Z",
+      "policyDecision": {
+        "decision": "ALLOW",
+        "reasonCodes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+        "decisionJSON": {
+          "money": {
+            "currency": "INR",
+            "requestedMinor": 27022,
+            "transactionLimitMinor": 1100000,
+            "rollingBudgetRemainingMinor": 4999972978
+          },
+          "decision": "ALLOW",
+          "expiresAt": "2026-09-29T10:25:33.789Z",
+          "explanation": "Transaction of INR 270.22 is within authorized mandate limits.",
+          "reasonCodes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+          "cart_snapshot_hash": "c9c40c309e905dcb6de4a911b6438d4f274bd1350c6939a0456482d4fb1a6d9b"
+        }
+      }
+    },
+    {
+      "id": "cart_01m3p3ektccghz95dnqp9grx0x",
+      "intent_mandate_id": "int_01m3p38j3hgbwdh2by8qz3mv6v",
+      "merchant_id": "mch_nimbus_gear_001",
+      "quote_expires_at": "2026-09-29T08:25:42.891Z",
+      "total_minor": 812666,
+      "currency": "INR",
+      "items": [
+        {
+          "title": "Nimbus Studio ANC Wireless Headphones",
+          "rating": {
+            "count": 117,
+            "average": 4.4
+          },
+          "category": "audio",
+          "quantity": 1,
+          "productId": "prod_aud_nimbus_anc",
+          "variantId": "aud_nimbus_anc_pro",
+          "returnable": true,
+          "discountBps": 0,
+          "negotiation": {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"],
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "lineDiscountMinor": 0,
+            "unitDiscountMinor": 0,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 649900
+          },
+          "lineAmountMinor": 649900,
+          "unitAmountMinor": 649900,
+          "lineDiscountMinor": 0,
+          "discoveryPriceMinor": 649900,
+          "originalUnitAmountMinor": 649900
+        },
+        {
+          "title": "Nimbus 65W GaN USB-C Fast Charger",
+          "rating": {
+            "count": 402,
+            "average": 4.8
+          },
+          "category": "accessories",
+          "quantity": 1,
+          "productId": "prod_acc_nimbus_charger",
+          "variantId": "acc_nimbus_charger",
+          "returnable": true,
+          "discountBps": 0,
+          "negotiation": {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"],
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "lineDiscountMinor": 0,
+            "unitDiscountMinor": 0,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 15900
+          },
+          "lineAmountMinor": 15900,
+          "unitAmountMinor": 15900,
+          "lineDiscountMinor": 0,
+          "discoveryPriceMinor": 15900,
+          "originalUnitAmountMinor": 15900
+        },
+        {
+          "title": "Aluminum Headphone Stand with USB Hub",
+          "rating": {
+            "count": 88,
+            "average": 4.3
+          },
+          "category": "accessories",
+          "quantity": 1,
+          "productId": "prod_acc_headphone_stand",
+          "variantId": "acc_headphone_stand",
+          "returnable": true,
+          "discountBps": 0,
+          "negotiation": {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"],
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "lineDiscountMinor": 0,
+            "unitDiscountMinor": 0,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 22900
+          },
+          "lineAmountMinor": 22900,
+          "unitAmountMinor": 22900,
+          "lineDiscountMinor": 0,
+          "discoveryPriceMinor": 22900,
+          "originalUnitAmountMinor": 22900
+        }
+      ],
+      "fulfillment": {
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "country": "IND",
+        "postalCode": "560001",
+        "addressLine1": "123 Indiranagar 100ft Rd"
+      },
+      "terms": {
+        "refundable": true,
+        "shippingPolicy": "Standard 2-3 Day Delivery",
+        "returnWindowDays": 7
+      },
+      "content_hash": "15b14b0fbf77f1698b80c358259aee85460d3d328a2e7c65a0a84692f23470c0",
+      "status": "completed",
+      "created_at": "2026-09-29T08:10:42.993Z",
+      "policyDecision": {
+        "decision": "ALLOW",
+        "reasonCodes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+        "decisionJSON": {
+          "money": {
+            "currency": "INR",
+            "requestedMinor": 812666,
+            "transactionLimitMinor": 1100000,
+            "rollingBudgetRemainingMinor": 4998420452
+          },
+          "decision": "ALLOW",
+          "expiresAt": "2026-09-29T08:25:42.892Z",
+          "explanation": "Transaction of INR 8126.66 is within authorized mandate limits.",
+          "reasonCodes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+          "cart_snapshot_hash": "15b14b0fbf77f1698b80c358259aee85460d3d328a2e7c65a0a84692f23470c0"
+        }
+      }
+    },
+    {
+      "id": "cart_01m3p38wg5n7nxvgnxbjd4an0s",
+      "intent_mandate_id": "int_01m3p38j3hgbwdh2by8qz3mv6v",
+      "merchant_id": "mch_nimbus_gear_001",
+      "quote_expires_at": "2026-09-29T08:22:35.173Z",
+      "total_minor": 766882,
+      "currency": "INR",
+      "items": [
+        {
+          "title": "Nimbus Studio ANC Wireless Headphones",
+          "rating": {
+            "count": 117,
+            "average": 4.4
+          },
+          "category": "audio",
+          "quantity": 1,
+          "productId": "prod_aud_nimbus_anc",
+          "variantId": "aud_nimbus_anc_pro",
+          "returnable": true,
+          "discountBps": 0,
+          "negotiation": {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"],
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "lineDiscountMinor": 0,
+            "unitDiscountMinor": 0,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 649900
+          },
+          "lineAmountMinor": 649900,
+          "unitAmountMinor": 649900,
+          "lineDiscountMinor": 0,
+          "discoveryPriceMinor": 649900,
+          "originalUnitAmountMinor": 649900
+        }
+      ],
+      "fulfillment": {
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "country": "IND",
+        "postalCode": "560001",
+        "addressLine1": "123 Indiranagar 100ft Rd"
+      },
+      "terms": {
+        "refundable": true,
+        "shippingPolicy": "Standard 2-3 Day Delivery",
+        "returnWindowDays": 7
+      },
+      "content_hash": "42326013526ec04b76752afd92ad94ee21228bad15e6e4a326475bacc9c7acde",
+      "status": "proposed",
+      "created_at": "2026-09-29T08:07:35.317Z",
+      "policyDecision": {
+        "decision": "ALLOW",
+        "reasonCodes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+        "decisionJSON": {
+          "money": {
+            "currency": "INR",
+            "requestedMinor": 766882,
+            "transactionLimitMinor": 1100000,
+            "rollingBudgetRemainingMinor": 4999233118
+          },
+          "decision": "ALLOW",
+          "expiresAt": "2026-09-29T08:22:35.173Z",
+          "explanation": "Transaction of INR 7668.82 is within authorized mandate limits.",
+          "reasonCodes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+          "cart_snapshot_hash": "42326013526ec04b76752afd92ad94ee21228bad15e6e4a326475bacc9c7acde"
+        }
+      }
+    },
+    {
+      "id": "cart_01m1q24cazjbdfy8knvpg24h2d",
+      "intent_mandate_id": "int_01m1q1yyt0r73ae0f5ypkzykmk",
+      "merchant_id": "mch_nimbus_gear_001",
+      "quote_expires_at": "2026-09-04T20:50:29.759Z",
+      "total_minor": 1453961,
+      "currency": "INR",
+      "items": [
+        {
+          "title": "Nimbus Pro Wireless Ultralight Gaming Mouse",
+          "rating": {
+            "count": 100,
+            "average": 4.1
+          },
+          "category": "electronics",
+          "quantity": 7,
+          "productId": "prod_mse_nimbus_pro",
+          "variantId": "mse_nimbus_pro_white",
+          "returnable": true,
+          "discountBps": 1000,
+          "negotiation": {
+            "agentName": "Nimbus Merchant Agent (Negotiated)",
+            "discountBps": 1000,
+            "reasonCodes": ["NEGOTIATED_AGREEMENT"],
+            "merchantMessage": "Negotiation session neg_01m1q1zgc2q7drhcppmwex1t7r: agreed 10.0% off for 7 x Nimbus Pro Wireless Ultralight Gaming Mouse.",
+            "lineDiscountMinor": 132930,
+            "unitDiscountMinor": 18990,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 170910
+          },
+          "lineAmountMinor": 1196370,
+          "unitAmountMinor": 170910,
+          "lineDiscountMinor": 132930,
+          "discoveryPriceMinor": 189900,
+          "originalUnitAmountMinor": 189900
+        },
+        {
+          "title": "Nimbus 65W GaN USB-C Fast Charger",
+          "rating": {
+            "count": 402,
+            "average": 4.8
+          },
+          "category": "accessories",
+          "quantity": 1,
+          "productId": "prod_acc_nimbus_charger",
+          "variantId": "acc_nimbus_charger",
+          "returnable": true,
+          "discountBps": 0,
+          "negotiation": {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"],
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "lineDiscountMinor": 0,
+            "unitDiscountMinor": 0,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 15900
+          },
+          "lineAmountMinor": 15900,
+          "unitAmountMinor": 15900,
+          "lineDiscountMinor": 0,
+          "discoveryPriceMinor": 15900,
+          "originalUnitAmountMinor": 15900
+        },
+        {
+          "title": "Nimbus Desk Mat (900x400mm, Stitched Edition)",
+          "rating": {
+            "count": 210,
+            "average": 4.7
+          },
+          "category": "accessories",
+          "quantity": 1,
+          "productId": "prod_acc_nimbus_deskmat",
+          "variantId": "acc_nimbus_deskmat",
+          "returnable": true,
+          "discountBps": 0,
+          "negotiation": {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"],
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "lineDiscountMinor": 0,
+            "unitDiscountMinor": 0,
+            "requiresMerchantApproval": false,
+            "discountedUnitAmountMinor": 19900
+          },
+          "lineAmountMinor": 19900,
+          "unitAmountMinor": 19900,
+          "lineDiscountMinor": 0,
+          "discoveryPriceMinor": 19900,
+          "originalUnitAmountMinor": 19900
+        }
+      ],
+      "fulfillment": {
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "country": "IND",
+        "postalCode": "560001",
+        "addressLine1": "123 Indiranagar 100ft Rd"
+      },
+      "terms": {
+        "refundable": true,
+        "shippingPolicy": "Standard 2-3 Day Delivery",
+        "returnWindowDays": 7
+      },
+      "content_hash": "e938decebc56716bfdd42af8f57688bf6631e07764cf78b15244333e0018c21c",
+      "status": "completed",
+      "created_at": "2026-09-04T20:35:29.858Z",
+      "policyDecision": {
+        "decision": "ALLOW",
+        "reasonCodes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+        "decisionJSON": {
+          "money": {
+            "currency": "INR",
+            "requestedMinor": 1453961,
+            "transactionLimitMinor": 1980000,
+            "rollingBudgetRemainingMinor": 4997134322
+          },
+          "decision": "ALLOW",
+          "expiresAt": "2026-09-04T20:50:29.759Z",
+          "explanation": "Transaction of INR 14539.61 is within authorized mandate limits.",
+          "reasonCodes": ["MANDATE_CONSTRAINTS_SATISFIED"],
+          "cart_snapshot_hash": "e938decebc56716bfdd42af8f57688bf6631e07764cf78b15244333e0018c21c"
+        }
+      }
+    }
+  ],
+  "recentOrders": [
+    {
+      "id": "pact_01m3pw1620egz0y8mtazzd4a1c",
+      "cart_mandate_id": "cart_01m3pw15qcz46bq65xzdzcvk43",
+      "decision_id": "dec_01m3pw15qf071v3z6n0xvxfa4g",
+      "budget_reservation_id": "bres_01m3pw15qgx9gmp8cyjztma3s4",
+      "amount_minor": 412882,
+      "currency": "INR",
+      "status": "pending_payment",
+      "razorpay_order_id": "order_Thtqi5cUeUsxE6",
+      "razorpay_payment_id": null,
+      "provider_metadata": {
+        "isMock": false,
+        "method": "razorpay"
+      },
+      "created_at": "2026-09-29T15:20:17.271Z",
+      "updated_at": "2026-09-29T15:20:17.271Z"
+    },
+    {
+      "id": "pact_01m3pvmq149c3b8d1gdkwkmh36",
+      "cart_mandate_id": "cart_01m3pvmpty20hrv7em7h52avb2",
+      "decision_id": "dec_01m3pvmpv2ckv3xyag3n5bhbfs",
+      "budget_reservation_id": "bres_01m3pvmpv3h266e4wyqc59wnt7",
+      "amount_minor": 412882,
+      "currency": "INR",
+      "status": "pending_payment",
+      "razorpay_order_id": "order_ThtjW5B3LZtOmP",
+      "razorpay_payment_id": null,
+      "provider_metadata": {
+        "isMock": false,
+        "method": "razorpay"
+      },
+      "created_at": "2026-09-29T15:13:28.675Z",
+      "updated_at": "2026-09-29T15:13:28.675Z"
+    },
+    {
+      "id": "pact_01m3pn4k9jhs9wp91n47qgvmkb",
+      "cart_mandate_id": "cart_01m3pn4k9fvy4251vbq2cqsasw",
+      "decision_id": "dec_01m3pn4k9hdt6ekg9ytatcvp3c",
+      "budget_reservation_id": "bres_01m3pn4k9jw63b919dcqb9smdz",
+      "amount_minor": 412882,
+      "currency": "INR",
+      "status": "pending_payment",
+      "razorpay_order_id": null,
+      "razorpay_payment_id": null,
+      "provider_metadata": {
+        "method": "stripe_card",
+        "provider": "stripe",
+        "autonomous": true
+      },
+      "created_at": "2026-09-29T13:19:49.086Z",
+      "updated_at": "2026-09-29T13:19:49.086Z"
+    },
+    {
+      "id": "pact_01m3pmy1d07we2c6d4n2x5tdtg",
+      "cart_mandate_id": "cart_01m3pmy1czprjy17qhdfszwmbq",
+      "decision_id": "dec_01m3pmy1czcw58wa69vj1k5wqw",
+      "budget_reservation_id": "bres_01m3pmy1cz303y7wycxxvqjeaq",
+      "amount_minor": 27022,
+      "currency": "INR",
+      "status": "pending_payment",
+      "razorpay_order_id": null,
+      "razorpay_payment_id": null,
+      "provider_metadata": {
+        "method": "stripe_card",
+        "provider": "stripe",
+        "autonomous": true
+      },
+      "created_at": "2026-09-29T13:16:14.145Z",
+      "updated_at": "2026-09-29T13:16:14.145Z"
+    },
+    {
+      "id": "pact_01m3pmvj4rvzx9ymv5s24vqz5q",
+      "cart_mandate_id": "cart_01m3pmvj4qqetpw8942xwzghmf",
+      "decision_id": "dec_01m3pmvj4qr9pzq7mkzn6n7mxb",
+      "budget_reservation_id": "bres_01m3pmvj4rfb53b64b6fmqp8qj",
+      "amount_minor": 27022,
+      "currency": "INR",
+      "status": "pending_payment",
+      "razorpay_order_id": null,
+      "razorpay_payment_id": null,
+      "provider_metadata": {
+        "method": "stripe_card",
+        "provider": "stripe",
+        "autonomous": true
+      },
+      "created_at": "2026-09-29T13:14:52.986Z",
+      "updated_at": "2026-09-29T13:14:52.986Z"
+    },
+    {
+      "id": "pact_01m3paa290vr0s4r0za9ajy3j1",
+      "cart_mandate_id": "cart_01m3paa25xn5ce8733sghsfrvg",
+      "decision_id": "dec_01m3paa25y7vbdy1kp85xnqx1y",
+      "budget_reservation_id": "bres_01m3paa25y0jpjac8cw45k9xsx",
+      "amount_minor": 27022,
+      "currency": "INR",
+      "status": "pending_payment",
+      "razorpay_order_id": "order_ThoZXZ3reJ4eoF",
+      "razorpay_payment_id": null,
+      "provider_metadata": {
+        "isMock": false
+      },
+      "created_at": "2026-09-29T10:10:33.923Z",
+      "updated_at": "2026-09-29T10:10:33.923Z"
+    },
+    {
+      "id": "pact_01m3p3ekweygc0jr7en0j3ayr4",
+      "cart_mandate_id": "cart_01m3p3ektccghz95dnqp9grx0x",
+      "decision_id": "dec_01m3p3ektcx6cgj0v785we3m8b",
+      "budget_reservation_id": "bres_01m3p3ektda011h6626j35g7zq",
+      "amount_minor": 812666,
+      "currency": "INR",
+      "status": "completed",
+      "razorpay_order_id": "order_ThmWwLesoTO3NH",
+      "razorpay_payment_id": "pay_ThmYkHZgJ1ISsY",
+      "provider_metadata": {
+        "isMock": false
+      },
+      "created_at": "2026-09-29T08:10:42.993Z",
+      "updated_at": "2026-09-29T08:12:45.328Z"
+    },
+    {
+      "id": "pact_01m3p38wkjhrwkjfz8ttcxng9f",
+      "cart_mandate_id": "cart_01m3p38wg5n7nxvgnxbjd4an0s",
+      "decision_id": "dec_01m3p38wg5ykkbh4cprhh2nzkw",
+      "budget_reservation_id": "bres_01m3p38wg6m8t4swv7z6nt6gv8",
+      "amount_minor": 766882,
+      "currency": "INR",
+      "status": "pending_payment",
+      "razorpay_order_id": "order_ThmTdU4pltwJFH",
+      "razorpay_payment_id": null,
+      "provider_metadata": {
+        "isMock": false
+      },
+      "created_at": "2026-09-29T08:07:35.317Z",
+      "updated_at": "2026-09-29T08:07:35.317Z"
+    },
+    {
+      "id": "pact_01m1q24cvjbrjt3r17hr3rmryz",
+      "cart_mandate_id": "cart_01m1q24cazjbdfy8knvpg24h2d",
+      "decision_id": "dec_01m1q24cf5cqf5c55c2z91p1xp",
+      "budget_reservation_id": "bres_01m1q24ch8as02mv0xgjcp1sbc",
+      "amount_minor": 1453961,
+      "currency": "INR",
+      "status": "completed",
+      "razorpay_order_id": "order_TY5rfr0FIvYG0r",
+      "razorpay_payment_id": "pay_TY5rw4YV87AV0T",
+      "provider_metadata": {
+        "isMock": false
+      },
+      "created_at": "2026-09-04T20:35:30.325Z",
+      "updated_at": "2026-09-04T20:36:03.417Z"
+    },
+    {
+      "id": "pact_01m1q1zss07nnkby4gwz63jjyw",
+      "cart_mandate_id": "cart_01m1q1zs60h8ptd2zfqcmggxks",
+      "decision_id": "dec_01m1q1zsab5fpyxz88qtz7etky",
+      "budget_reservation_id": "bres_01m1q1zschnzv2x2xzjsppxby1",
+      "amount_minor": 1411717,
+      "currency": "INR",
+      "status": "pending_payment",
+      "razorpay_order_id": "order_TY5p1QYofrqi01",
+      "razorpay_payment_id": null,
+      "provider_metadata": {
+        "isMock": false
+      },
+      "created_at": "2026-09-04T20:32:59.716Z",
+      "updated_at": "2026-09-04T20:32:59.716Z"
+    }
+  ]
+}

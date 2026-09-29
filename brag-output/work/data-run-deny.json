@@ -1,0 +1,353 @@
+{
+  "traceId": "trace_01m3pw8j5rfrbva4e92fqg3pmz",
+  "scenarioId": "overLimit",
+  "scenarioName": "Scenario 3: Budget Limit Defense (Autonomous DENY)",
+  "category": "policy_deny",
+  "success": true,
+  "finalDecision": "DENY",
+  "expectedDecision": "DENY",
+  "totalDurationMs": 1682,
+  "events": [
+    {
+      "stepIndex": 1,
+      "type": "discover",
+      "description": "Query merchant discovery endpoint",
+      "timestamp": "2026-09-29T15:24:19.095Z",
+      "durationMs": 94,
+      "responsePayload": {
+        "protocol": "agentpay-commerce.v1",
+        "merchantId": "mch_nimbus_gear_001",
+        "merchantName": "Nimbus Gear & Electronics",
+        "description": "AI-native merchant offering high-performance computer peripherals and electronics with authoritative time-bound quotes.",
+        "status": "active",
+        "capabilities": {
+          "catalogSearch": true,
+          "authoritativeCheckout": true,
+          "agentNegotiation": true,
+          "bulkPricing": true,
+          "productRatings": true,
+          "returns": true,
+          "agentVerification": true,
+          "priceFreezingMinutes": 15,
+          "streamingLineage": true
+        },
+        "endpoints": {
+          "manifest": "http://localhost:3000/.well-known/agent-commerce.json",
+          "catalog": "http://localhost:3000/v1/agent/catalog",
+          "product": "http://localhost:3000/v1/agent/products/{variant_id}",
+          "verify": "http://localhost:3000/v1/agent/verify",
+          "negotiate": "http://localhost:3000/v1/agent/negotiate",
+          "checkout": "http://localhost:3000/v1/agent/checkout",
+          "confirm": "http://localhost:3000/v1/agent/checkout/confirm"
+        },
+        "money": { "currencies": ["INR"], "minorUnits": true },
+        "paymentHandlers": [
+          {
+            "type": "stripe_test",
+            "mode": "autonomous_agent",
+            "description": "Agent settles quote autonomously: present a payment-method token at /v1/agent/checkout/confirm (paymentMethod 'stripe_card') and the server confirms the PaymentIntent server-side."
+          },
+          { "type": "razorpay_test", "mode": "human_present" }
+        ],
+        "security": {
+          "proofType": "sha256-canonical-json",
+          "mandateSchema": "intent_mandate.v1",
+          "quoteSchema": "cart_mandate.v1"
+        }
+      },
+      "status": "success",
+      "summary": "Discovered merchant 'Nimbus Gear & Electronics' (agentpay-commerce.v1) with endpoints: [manifest, catalog, product, verify, negotiate, checkout, confirm]"
+    },
+    {
+      "stepIndex": 2,
+      "type": "search",
+      "description": "Search catalogue for 'gaming laptop'",
+      "timestamp": "2026-09-29T15:24:19.451Z",
+      "durationMs": 356,
+      "requestPayload": { "q": "laptop" },
+      "responsePayload": {
+        "items": [
+          {
+            "productId": "prod_acc_nimbus_stand",
+            "variantId": "acc_nimbus_stand_alu",
+            "merchantId": "mch_nimbus_gear_001",
+            "title": "Ergonomic Aluminum Foldable Laptop Stand",
+            "description": "Aerospace-grade CNC aluminum adjustable ergonomic laptop riser with silicone non-slip pads.",
+            "category": "accessories",
+            "tags": ["accessories"],
+            "attributes": {
+              "angles": "6 adjustable levels",
+              "material": "CNC Aluminum",
+              "ratingCount": 47,
+              "compatibility": "11-17 inch laptops",
+              "ratingAverage": 3.7
+            },
+            "rating": { "average": 3.7, "count": 47 },
+            "discoveryPrice": { "amountMinor": 129900, "currency": "INR" },
+            "availability": { "status": "in_stock", "quantityBand": "20+" },
+            "returnable": true,
+            "returnWindowDays": 30,
+            "images": ["/product-placeholder.png"],
+            "version": "2",
+            "updatedAt": "2026-08-27T14:50:40.828Z"
+          },
+          {
+            "productId": "prod_lap_gaming_pro",
+            "variantId": "laptop_gaming_pro",
+            "merchantId": "mch_nimbus_gear_001",
+            "title": "Apex RTX Studio 16 High-Performance Gaming Laptop",
+            "description": "Flagship laptop equipped with Core i9, RTX 4080 12GB, 32GB DDR5 RAM, and 2TB NVMe SSD.",
+            "category": "computers",
+            "tags": ["computers"],
+            "attributes": {
+              "cpu": "Intel Core i9-14900HX",
+              "gpu": "NVIDIA RTX 4080 12GB",
+              "ram": "32GB DDR5",
+              "storage": "2TB NVMe Gen4",
+              "ratingCount": 84,
+              "ratingAverage": 3.9
+            },
+            "rating": { "average": 3.9, "count": 84 },
+            "discoveryPrice": { "amountMinor": 12999900, "currency": "INR" },
+            "availability": { "status": "limited", "quantityBand": "3" },
+            "returnable": true,
+            "returnWindowDays": 7,
+            "images": ["/product-placeholder.png"],
+            "version": "2",
+            "updatedAt": "2026-08-27T14:50:15.929Z"
+          },
+          {
+            "productId": "prod_acc_lap_sleeve",
+            "variantId": "acc_lap_sleeve",
+            "merchantId": "mch_nimbus_gear_001",
+            "title": "Nimbus 16-inch Slim Laptop Sleeve (Water-Resistant)",
+            "description": "Barely-there 16-inch laptop sleeve with soft-touch recycled exterior, fuzz-free lining, and magnetic closure.",
+            "category": "accessories",
+            "tags": ["accessories"],
+            "attributes": {
+              "fits": "Up to 16-inch laptops",
+              "material": "Recycled PET + Felt",
+              "ratingCount": 67,
+              "ratingAverage": 4.5
+            },
+            "rating": { "average": 4.5, "count": 67 },
+            "discoveryPrice": { "amountMinor": 17900, "currency": "INR" },
+            "availability": { "status": "in_stock", "quantityBand": "20+" },
+            "returnable": true,
+            "returnWindowDays": 15,
+            "images": ["/product-placeholder.png"],
+            "version": "1",
+            "updatedAt": "2026-09-03T17:55:21.536Z"
+          },
+          {
+            "productId": "prod_acc_nimbus_charger",
+            "variantId": "acc_nimbus_charger",
+            "merchantId": "mch_nimbus_gear_001",
+            "title": "Nimbus 65W GaN USB-C Fast Charger",
+            "description": "Pocket-sized 65W GaN charger with dual USB-C + USB-A ports (PD 3.0, PPS) — fast-charges phones, tablets, and 14-inch laptops.",
+            "category": "accessories",
+            "tags": ["accessories"],
+            "attributes": {
+              "ports": "2x USB-C, 1x USB-A",
+              "wattage": "65W GaN",
+              "protocol": "PD 3.0 / PPS / QC 4+",
+              "ratingCount": 402,
+              "ratingAverage": 4.8
+            },
+            "rating": { "average": 4.8, "count": 402 },
+            "discoveryPrice": { "amountMinor": 15900, "currency": "INR" },
+            "availability": { "status": "in_stock", "quantityBand": "20+" },
+            "returnable": true,
+            "returnWindowDays": 30,
+            "images": ["/product-placeholder.png"],
+            "version": "1",
+            "updatedAt": "2026-09-03T17:55:21.210Z"
+          }
+        ],
+        "total": 4
+      },
+      "status": "success",
+      "summary": "Catalog search 'laptop' returned 4 matching items."
+    },
+    {
+      "stepIndex": 3,
+      "type": "select",
+      "description": "Select flagship laptop 'laptop_gaming_pro' priced at ₹1,29,999.00",
+      "timestamp": "2026-09-29T15:24:19.734Z",
+      "durationMs": 283,
+      "requestPayload": { "variantId": "laptop_gaming_pro" },
+      "responsePayload": {
+        "productId": "prod_lap_gaming_pro",
+        "variantId": "laptop_gaming_pro",
+        "merchantId": "mch_nimbus_gear_001",
+        "title": "Apex RTX Studio 16 High-Performance Gaming Laptop",
+        "description": "Flagship laptop equipped with Core i9, RTX 4080 12GB, 32GB DDR5 RAM, and 2TB NVMe SSD.",
+        "category": "computers",
+        "tags": ["computers"],
+        "attributes": {
+          "cpu": "Intel Core i9-14900HX",
+          "gpu": "NVIDIA RTX 4080 12GB",
+          "ram": "32GB DDR5",
+          "storage": "2TB NVMe Gen4",
+          "ratingCount": 84,
+          "ratingAverage": 3.9
+        },
+        "rating": { "average": 3.9, "count": 84 },
+        "pricing": {
+          "amountMinor": 12999900,
+          "currency": "INR",
+          "taxRateBps": 1800,
+          "isPromotional": false
+        },
+        "availability": {
+          "status": "limited",
+          "quantityBand": "3",
+          "stock": 3
+        },
+        "returnable": true,
+        "returnWindowDays": 7,
+        "images": ["/product-placeholder.png"],
+        "version": "2",
+        "updatedAt": "2026-08-27T14:50:15.929Z"
+      },
+      "status": "success",
+      "summary": "Retrieved product 'Apex RTX Studio 16 High-Performance Gaming Laptop' - Base price: ₹129999.00 (limited)"
+    },
+    {
+      "stepIndex": 4,
+      "type": "verify",
+      "description": "Submit Intent Mandate constrained to max ₹5,000.00 (500000 minor units)",
+      "timestamp": "2026-09-29T15:24:20.178Z",
+      "durationMs": 444,
+      "requestPayload": { "maxTransactionAmountMinor": 500000 },
+      "responsePayload": {
+        "verified": true,
+        "decision": "ALLOW",
+        "reasonCodes": ["PROOF_VERIFIED", "AGENT_AND_MANDATE_VERIFIED"],
+        "explanation": "Agent agt_apollo_buyer_v1 and Intent Mandate int_01m3pw8j5qetcx355c1d75jqfm verified successfully.",
+        "verificationId": "ver_01m3pw8k2507dedagyjww0d3m5",
+        "expiresAt": "2026-09-29T15:54:20.174Z",
+        "applicableLimits": {
+          "maxTransactionAmountMinor": 500000,
+          "rollingBudgetRemainingMinor": 2000000
+        },
+        "agentAuth": {
+          "mode": "demo",
+          "agentId": "anonymous_agent",
+          "rateLimitRemaining": 56
+        }
+      },
+      "status": "success",
+      "summary": "Agent mandate verification: [ALLOW] - Agent agt_apollo_buyer_v1 and Intent Mandate int_01m3pw8j5qetcx355c1d75jqfm verified successfully."
+    },
+    {
+      "stepIndex": 5,
+      "type": "checkout",
+      "description": "Request quote for laptop exceeding user authorization",
+      "timestamp": "2026-09-29T15:24:20.683Z",
+      "durationMs": 505,
+      "requestPayload": {
+        "items": [{ "variantId": "laptop_gaming_pro", "quantity": 1 }]
+      },
+      "responsePayload": {
+        "success": true,
+        "cartMandate": {
+          "type": "cart_mandate.v1",
+          "id": "cart_01m3pw8km0ft5zwj1s7qsghx48",
+          "intentMandateId": "int_01m3pw8j5qetcx355c1d75jqfm",
+          "merchantId": "mch_nimbus_gear_001",
+          "quote": {
+            "quoteId": "quo_01m3pw8km332779x4tn3946157",
+            "version": 1,
+            "issuedAt": "2026-09-29T15:24:20.480Z",
+            "expiresAt": "2026-09-29T15:39:20.480Z"
+          },
+          "items": [
+            {
+              "productId": "prod_lap_gaming_pro",
+              "variantId": "laptop_gaming_pro",
+              "category": "computers",
+              "title": "Apex RTX Studio 16 High-Performance Gaming Laptop",
+              "quantity": 1,
+              "unitAmountMinor": 12999900,
+              "lineAmountMinor": 12999900,
+              "originalUnitAmountMinor": 12999900,
+              "discountBps": 0,
+              "lineDiscountMinor": 0,
+              "rating": { "average": 3.9, "count": 84 }
+            }
+          ],
+          "totals": {
+            "subtotalMinor": 12999900,
+            "discountMinor": 0,
+            "shippingMinor": 0,
+            "taxMinor": 2339982,
+            "grandTotalMinor": 15339882,
+            "currency": "INR"
+          },
+          "fulfillment": {
+            "country": "IND",
+            "postalCode": "560001",
+            "state": "Karnataka",
+            "city": "Bengaluru",
+            "addressLine1": "123 Indiranagar 100ft Rd"
+          },
+          "terms": {
+            "refundable": true,
+            "returnWindowDays": 7,
+            "shippingPolicy": "Standard 2-3 Day Delivery"
+          },
+          "devProof": {
+            "type": "sha256-canonical-json",
+            "digest": "aa07ccd331db576d12adb3871408b096cd91e059d3b4e120724b86ea13dbd957"
+          }
+        },
+        "policyEvaluation": {
+          "decisionId": "dec_01m3pw8km5v3zemq2zzeg88t1g",
+          "decision": "DENY",
+          "reasonCodes": [
+            "TRANSACTION_LIMIT_EXCEEDED",
+            "ROLLING_BUDGET_EXHAUSTED",
+            "ROLLING_BUDGET_REMAINING_2000000"
+          ],
+          "money": {
+            "requestedMinor": 15339882,
+            "transactionLimitMinor": 500000,
+            "rollingBudgetRemainingMinor": 0,
+            "currency": "INR"
+          },
+          "cartSnapshotHash": "aa07ccd331db576d12adb3871408b096cd91e059d3b4e120724b86ea13dbd957",
+          "expiresAt": "2026-09-29T15:39:20.480Z"
+        },
+        "paymentRequired": false,
+        "queuedForApproval": false,
+        "surgeActive": false,
+        "negotiationSessionId": null,
+        "merchantAgentNegotiations": [
+          {
+            "agentName": "Nimbus Merchant Agent",
+            "discountBps": 0,
+            "unitDiscountMinor": 0,
+            "discountedUnitAmountMinor": 12999900,
+            "lineDiscountMinor": 0,
+            "merchantMessage": "Nimbus Merchant Agent: No automatic discount offered for quantity 1. quantity below bulk threshold.",
+            "requiresMerchantApproval": false,
+            "reasonCodes": ["QUANTITY_BELOW_BULK_THRESHOLD"]
+          }
+        ],
+        "campaignsApplied": [],
+        "upsell": null,
+        "rollingBudgetUsageMinor": 0,
+        "rollingBudgetRemainingMinor": 0,
+        "agentAuth": {
+          "agentId": "anonymous_agent",
+          "mode": "demo",
+          "rateLimitRemaining": 55
+        }
+      },
+      "status": "error",
+      "summary": "Authoritative Quote: cart_01m3pw8km0ft5zwj1s7qsghx48 Total: ₹153398.82. Policy Decision: [DENY]"
+    }
+  ],
+  "summary": "Scenario 'Scenario 3: Budget Limit Defense (Autonomous DENY)' completed as expected with decision [DENY]."
+}

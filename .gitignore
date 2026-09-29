@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# brag video pipeline: regenerable render intermediates (run work/render-frames.mjs + audio.mjs)
+brag-output/work/frames/
+brag-output/work/audio.wav

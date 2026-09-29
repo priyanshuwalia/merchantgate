@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { LogoLockup } from "@/components/branding/Logo";
+import { LaunchFilm } from "@/components/landing/launch-film";
 
 export default function LandingPage() {
   return (
@@ -156,6 +157,31 @@ export default function LandingPage() {
                 </p>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* Launch Film */}
+        <section className="border-t border-border py-16">
+          <div className="mb-10 text-center">
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-text-muted">
+              Watch
+            </h2>
+            <p className="mt-2 text-2xl font-bold tracking-tight text-foreground">
+              Twenty seconds, start to settlement
+            </p>
+          </div>
+
+          <LaunchFilm className="mx-auto max-w-4xl" />
+
+          <div className="mx-auto mt-6 max-w-2xl text-center">
+            <p className="text-sm leading-relaxed text-text-secondary">
+              A buyer agent tries to talk its way past the gate with a prompt
+              injection. It doesn&rsquo;t. Then a legitimate checkout comes back
+              as a signed, hash-chained quote with a 15-minute price freeze.
+            </p>
+            <p className="mt-3 font-mono text-[11px] uppercase tracking-widest text-text-muted">
+              Every figure in the film came from a live run against this stack
+            </p>
           </div>
         </section>
 

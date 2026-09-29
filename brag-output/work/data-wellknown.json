@@ -1,0 +1,41 @@
+{
+  "protocol": "agentpay-commerce.v1",
+  "merchantId": "mch_nimbus_gear_001",
+  "merchantName": "Nimbus Gear & Electronics",
+  "description": "AI-native merchant offering high-performance computer peripherals and electronics with authoritative time-bound quotes.",
+  "status": "active",
+  "capabilities": {
+    "catalogSearch": true,
+    "authoritativeCheckout": true,
+    "agentNegotiation": true,
+    "bulkPricing": true,
+    "productRatings": true,
+    "returns": true,
+    "agentVerification": true,
+    "priceFreezingMinutes": 15,
+    "streamingLineage": true
+  },
+  "endpoints": {
+    "manifest": "http://localhost:3000/.well-known/agent-commerce.json",
+    "catalog": "http://localhost:3000/v1/agent/catalog",
+    "product": "http://localhost:3000/v1/agent/products/{variant_id}",
+    "verify": "http://localhost:3000/v1/agent/verify",
+    "negotiate": "http://localhost:3000/v1/agent/negotiate",
+    "checkout": "http://localhost:3000/v1/agent/checkout",
+    "confirm": "http://localhost:3000/v1/agent/checkout/confirm"
+  },
+  "money": { "currencies": ["INR"], "minorUnits": true },
+  "paymentHandlers": [
+    {
+      "type": "stripe_test",
+      "mode": "autonomous_agent",
+      "description": "Agent settles quote autonomously: present a payment-method token at /v1/agent/checkout/confirm (paymentMethod 'stripe_card') and the server confirms the PaymentIntent server-side."
+    },
+    { "type": "razorpay_test", "mode": "human_present" }
+  ],
+  "security": {
+    "proofType": "sha256-canonical-json",
+    "mandateSchema": "intent_mandate.v1",
+    "quoteSchema": "cart_mandate.v1"
+  }
+}

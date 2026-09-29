@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>MerchantGate — brag</title>
+<style>
+  @font-face {
+    font-family: "InterVar";
+    src: url("./fonts/inter-latin.woff2") format("woff2");
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: block;
+  }
+
+  :root {
+    --bg: #f8fafc;
+    --fg: #1a1a2e;
+    --card: #ffffff;
+    --border: #e8edf2;
+    --primary: #0066ff;
+    --primary-deep: #0052cc;
+    --accent: #e6f0ff;
+    --success: #00b874;
+    --success-deep: #00754d;
+    --warning: #ffb822;
+    --warning-deep: #946400;
+    --error: #f44336;
+    --error-deep: #d32f2f;
+    --violet: #7c5cff;
+    --text2: #4a4a5a;
+    --muted: #8a8a9a;
+    --secondary: #eef2f6;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #000; }
+  body {
+    font-family: "InterVar", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
+  }
+  .mono {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-variant-ligatures: none;
+  }
+  .num { font-variant-numeric: tabular-nums; }
+
+  #frame {
+    position: relative; width: 1920px; height: 1080px; overflow: hidden;
+    background: var(--bg); color: var(--fg);
+  }
+
+  /* ---------------- shared chrome ---------------- */
+  .grid-bg {
+    position: absolute; inset: 0; pointer-events: none;
+    background-size: 40px 40px;
+    background-image:
+      linear-gradient(to right, #e8edf2 1px, transparent 1px),
+      linear-gradient(to bottom, #e8edf2 1px, transparent 1px);
+    opacity: .5;
+  }
+  .wash {
+    position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(to bottom, var(--bg) 0%, rgba(248,250,252,0) 20%, rgba(248,250,252,0) 80%, var(--bg) 100%);
+  }
+  .vignette {
+    position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(125% 95% at 50% 40%, rgba(255,255,255,0) 42%, rgba(232,237,242,.6) 100%);
+  }
+  #dip { position: absolute; inset: 0; background: var(--secondary); opacity: 0; pointer-events: none; }
+
+  .brandmark { position: absolute; top: 54px; left: 72px; display: flex; align-items: center; gap: 14px; }
+  .brandmark .word { font-size: 25px; font-weight: 800; letter-spacing: -.6px; }
+  .brandmark .word b { font-weight: 300; color: var(--primary); }
+  .urlpill {
+    position: absolute; top: 58px; right: 72px; display: flex; align-items: center; gap: 10px;
+    font-size: 19px; color: var(--text2); border: 1px solid var(--border); background: rgba(255,255,255,.8);
+    padding: 11px 20px; border-radius: 999px;
+  }
+  .urlpill .dot { width: 9px; height: 9px; border-radius: 999px; background: var(--success); box-shadow: 0 0 0 4px rgba(0,184,116,.16); }
+
+  .scene { position: absolute; inset: 0; }
+
+  /* ---------------- browser window wrapper ---------------- */
+  .browser {
+    position: absolute; border-radius: 18px; overflow: hidden; background: #fff;
+    border: 1px solid #dfe6ee;
+    box-shadow: 0 34px 76px -30px rgba(26,26,46,.36), 0 4px 14px rgba(26,26,46,.06);
+  }
+  .browser .bar {
+    height: 52px; background: linear-gradient(#fbfcfe, #f3f6f9); border-bottom: 1px solid #e6ebf1;
+    display: flex; align-items: center; gap: 9px; padding: 0 18px;
+  }
+  .browser .bar i { width: 12px; height: 12px; border-radius: 999px; display: block; }
+  .browser .url {
+    flex: 1; height: 28px; border-radius: 7px; background: #fff; border: 1px solid #e6ebf1;
+    display: flex; align-items: center; gap: 8px; padding: 0 11px; font-size: 13px; color: #6b7280;
+  }
+  .browser .shot { position: relative; overflow: hidden; background: #fff; }
+  .browser .shot img { display: block; width: 100%; }
+
+  /* ---------------- scene 1: the attack ---------------- */
+  .chatwrap { position: absolute; left: 0; right: 0; top: 318px; display: flex; flex-direction: column; align-items: center; }
+  .chat {
+    width: 1200px; background: #fff; border: 1px solid var(--border); border-radius: 20px;
+    box-shadow: 0 30px 70px -34px rgba(26,26,46,.36); padding: 24px 30px 30px;
+  }
+  .chat .head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 18px; border-bottom: 1px solid #eef2f6; }
+  .chat .who { display: flex; align-items: center; gap: 13px; }
+  .chat .av { width: 42px; height: 42px; border-radius: 12px; background: #101223; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; }
+  .chat .t1 { font-size: 20px; font-weight: 650; letter-spacing: -.2px; }
+  .chat .t1 span { color: var(--muted); font-weight: 500; }
+  .chat .t2 { font-size: 15px; color: var(--muted); margin-top: 3px; }
+  .thread { display: flex; flex-direction: column; gap: 20px; padding-top: 24px; }
+  .bubble { max-width: 940px; border-radius: 16px; padding: 18px 24px; font-size: 27px; line-height: 1.4; letter-spacing: -.3px; }
+  .bubble.agent { background: #f4f7fb; border: 1px solid #e4eaf1; border-top-left-radius: 5px; }
+  .bubble.agent b { color: var(--error-deep); font-weight: 650; }
+  .bubble .who-tag { font-size: 14px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; font-weight: 600; }
+  .caret { display: inline-block; width: 3px; height: 29px; background: var(--primary); vertical-align: -5px; margin-left: 3px; border-radius: 1px; }
+  .gate-reply { display: flex; align-items: center; gap: 22px; max-width: 1010px; }
+  .stamp {
+    display: inline-flex; align-items: center; gap: 13px; padding: 15px 28px; border-radius: 14px;
+    background: var(--error); color: #fff; font-size: 32px; font-weight: 800; letter-spacing: .1em;
+    box-shadow: 0 18px 36px -14px rgba(244,67,54,.8); white-space: nowrap;
+  }
+  .reasons { display: flex; flex-direction: column; gap: 8px; }
+  .reason {
+    font-size: 17px; color: #a9302a; background: rgba(244,67,54,.08); border: 1px solid rgba(244,67,54,.28);
+    border-radius: 8px; padding: 7px 13px; letter-spacing: .1px; white-space: nowrap;
+  }
+  .caption { position: absolute; left: 0; right: 0; text-align: center; font-size: 33px; color: var(--text2); letter-spacing: -.5px; }
+
+  /* ---------------- scene 2: the reveal ---------------- */
+  .herostage { position: absolute; left: 112px; top: 264px; width: 1120px; }
+  .h1 { font-size: 88px; line-height: 1.03; letter-spacing: -3.5px; font-weight: 800; }
+  .grad { background: linear-gradient(92deg, #0066ff, #0052cc); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .h2 { margin-top: 30px; font-size: 32px; line-height: 1.44; color: var(--text2); letter-spacing: -.5px; }
+  .tagrow { display: flex; gap: 12px; margin-top: 36px; flex-wrap: wrap; }
+  .tag {
+    font-size: 19px; color: var(--text2); background: #fff; border: 1px solid var(--border);
+    border-radius: 999px; padding: 11px 19px; display: flex; align-items: center; gap: 10px; letter-spacing: -.1px;
+  }
+  .tag i { width: 9px; height: 9px; border-radius: 999px; display: block; flex: none; }
+
+  /* ---------------- scene 3: the protocol ---------------- */
+  .proto { position: absolute; left: 0; right: 0; top: 172px; height: 700px; display: flex; gap: 30px; justify-content: center; align-items: stretch; }
+  .panel {
+    background: #fff; border: 1px solid var(--border); border-radius: 18px; overflow: hidden;
+    box-shadow: 0 26px 60px -38px rgba(26,26,46,.42); display: flex; flex-direction: column;
+  }
+  .phead { display: flex; align-items: center; gap: 12px; padding: 19px 24px; border-bottom: 1px solid #eef2f6; font-size: 18px; font-weight: 650; flex: none; }
+  .phead .sub { color: var(--muted); font-weight: 500; font-size: 15px; }
+  .phead .tagv { margin-left: auto; font-size: 14px; color: var(--primary); background: var(--accent); border-radius: 7px; padding: 5px 10px; }
+
+  .term { padding: 14px 24px 20px; display: flex; flex-direction: column; justify-content: space-evenly; flex: 1; }
+  .tfoot { flex: none; margin: 0 24px 24px; border-radius: 14px; background: rgba(0,184,116,.07); border: 1px solid rgba(0,184,116,.3); padding: 16px 20px; }
+  .tf-top { display: flex; align-items: center; gap: 14px; }
+  .tf-dec { font-size: 24px; font-weight: 800; letter-spacing: .08em; color: var(--success-deep); }
+  .tf-why { font-size: 19px; color: #116b4c; letter-spacing: .02em; }
+  .tf-trace { margin-top: 11px; font-size: 15px; color: var(--muted); letter-spacing: .02em; }
+  .tline { display: flex; align-items: center; gap: 16px; padding: 12px 0; opacity: 0; }
+  .tline .verb { font-size: 15px; font-weight: 700; letter-spacing: .07em; width: 58px; flex: none; }
+  .tline .verb.get { color: var(--primary); }
+  .tline .verb.post { color: var(--violet); }
+  .tline .path { font-size: 21px; letter-spacing: -.3px; word-break: break-all; }
+  .tline .path b { color: var(--muted); font-weight: 500; }
+  .tline .meta { margin-left: auto; flex: none; display: flex; align-items: center; gap: 9px; padding-left: 14px; }
+  .chip { font-size: 14px; padding: 5px 10px; border-radius: 7px; white-space: nowrap; }
+  .chip.ok { color: var(--success-deep); background: rgba(0,184,116,.11); }
+  .chip.note { color: var(--text2); background: #f1f5f9; }
+
+  .mandate { width: 592px; }
+  .quote { padding: 20px 26px; flex: 1; display: flex; flex-direction: column; }
+  .qrow { display: flex; align-items: baseline; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed #edf1f5; }
+  .qrow .k { font-size: 20px; color: var(--text2); letter-spacing: -.2px; }
+  .qrow .v { font-size: 23px; font-weight: 650; letter-spacing: -.3px; }
+  .qrow .v.mut { color: var(--text2); font-weight: 500; }
+  .qrow.total { border-bottom: none; padding-top: 18px; }
+  .qrow.total .k { font-size: 22px; color: var(--fg); font-weight: 600; }
+  .qrow.total .v { font-size: 42px; font-weight: 800; color: var(--primary); letter-spacing: -1.2px; }
+  .hashbox { margin-top: 20px; border-radius: 12px; background: #f6f9fc; border: 1px solid #e6ecf3; padding: 15px 17px; }
+  .hashbox .lbl { font-size: 14px; color: var(--muted); letter-spacing: .07em; }
+  .hashbox .val { font-size: 16px; color: var(--text2); margin-top: 8px; word-break: break-all; line-height: 1.55; }
+
+  .freeze { width: 592px; background: #fff; border: 1px solid rgba(0,184,116,.34); border-radius: 16px; padding: 18px 22px; flex: none; box-shadow: 0 22px 50px -38px rgba(0,110,70,.5); }
+  .freeze .fh { display: flex; align-items: baseline; gap: 10px; }
+  .freeze .fl { font-size: 14px; letter-spacing: .1em; color: var(--success-deep); font-weight: 700; }
+  .freeze .fv { margin-left: auto; font-size: 21px; font-weight: 700; color: var(--success-deep); letter-spacing: -.3px; }
+  .freeze .track { margin-top: 13px; height: 7px; border-radius: 999px; background: rgba(0,184,116,.16); overflow: hidden; }
+  .freeze .fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #00b874, #009e63); }
+
+  .rightcol { width: 592px; align-self: stretch; display: flex; flex-direction: column; gap: 22px; }
+  .rightcol .panel.mandate { flex: 1 1 auto; }
+  .sticker {
+    position: absolute; left: 0; right: 0; bottom: 74px; margin: 0 auto; width: fit-content;
+    background: #101223; color: #fff; border-radius: 14px; padding: 16px 30px;
+    font-size: 24px; font-weight: 600; letter-spacing: -.2px; box-shadow: 0 26px 50px -22px rgba(16,18,35,.75);
+  }
+
+  /* ---------------- scene 4: the gate ---------------- */
+  .gatewrap { position: absolute; left: 92px; top: 176px; width: 1010px; }
+  .shotcard { background: #fff; border: 1px solid var(--border); border-radius: 16px; overflow: hidden; box-shadow: 0 24px 56px -36px rgba(26,26,46,.4); }
+  .shotcard img { display: block; width: 100%; }
+  .denybox { background: #fff; border: 1px solid rgba(244,67,54,.32); border-radius: 18px; overflow: hidden; box-shadow: 0 30px 66px -36px rgba(244,67,54,.45); margin-top: 26px; }
+  .denybox .dh { display: flex; align-items: center; gap: 14px; padding: 17px 24px; background: #fff6f5; border-bottom: 1px solid rgba(244,67,54,.22); }
+  .denybox .dh .t { font-size: 20px; font-weight: 700; color: var(--error-deep); letter-spacing: -.2px; }
+  .denybox .dh .s { font-size: 15px; color: #a9302a; margin-left: auto; }
+  .denybox .dc { padding: 22px 24px 24px; }
+  .codes { display: flex; flex-wrap: wrap; gap: 10px; }
+  .code { font-size: 16px; padding: 8px 13px; border-radius: 8px; color: var(--error-deep); background: rgba(244,67,54,.09); border: 1px solid rgba(244,67,54,.26); }
+  .compare { display: flex; align-items: flex-end; gap: 22px; margin-top: 22px; }
+  .cmp { display: flex; flex-direction: column; gap: 6px; }
+  .cmp .k { font-size: 15px; color: var(--muted); letter-spacing: .05em; }
+  .cmp .v { font-size: 34px; font-weight: 750; letter-spacing: -1px; }
+  .cmp.over .v { color: var(--error); }
+  .cmp.limit .v { color: var(--text2); }
+  .vsg { font-size: 22px; color: var(--muted); padding-bottom: 8px; }
+
+  .controls { position: absolute; right: 92px; top: 176px; width: 690px; background: #fff; border: 1px solid var(--border); border-radius: 18px; overflow: hidden; box-shadow: 0 24px 56px -38px rgba(26,26,46,.4); }
+  .controls .ch { padding: 18px 24px 14px; border-bottom: 1px solid #eef2f6; font-size: 18px; font-weight: 650; display: flex; align-items: center; gap: 11px; }
+  .crow { display: flex; align-items: center; gap: 16px; padding: 15px 24px; border-bottom: 1px solid #f4f7fa; }
+  .crow:last-child { border-bottom: none; }
+  .crow .k { font-size: 19px; color: var(--text2); letter-spacing: -.2px; }
+  .crow .v { margin-left: auto; font-size: 21px; font-weight: 650; letter-spacing: -.3px; }
+  .crow .v.ok { color: var(--success-deep); }
+  .sw { width: 42px; height: 24px; border-radius: 999px; background: var(--primary); position: relative; flex: none; }
+  .sw::after { content: ""; position: absolute; top: 3px; right: 3px; width: 18px; height: 18px; border-radius: 999px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+
+  /* ---------------- scene 5: punchline ---------------- */
+  .console { position: absolute; left: 152px; top: 0; width: 1616px; border-radius: 18px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 40px 90px -44px rgba(26,26,46,.5); background: #fff; }
+  .console img { display: block; width: 100%; }
+  .punch { position: absolute; left: 0; right: 0; top: 0; text-align: center; }
+  .punch .l1, .punch .l2 { font-size: 68px; font-weight: 800; letter-spacing: -2.5px; line-height: 1.12; }
+  .statrow { position: absolute; left: 0; right: 0; top: 486px; display: flex; justify-content: center; gap: 18px; }
+  .stat {
+    background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 20px 30px;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 7px;
+    box-shadow: 0 18px 40px -30px rgba(26,26,46,.4);
+  }
+  .stat .v { font-size: 34px; font-weight: 800; letter-spacing: -1px; line-height: 1; }
+  .stat .k { font-size: 16px; color: var(--muted); letter-spacing: .02em; }
+  .endcard { position: absolute; left: 0; right: 0; bottom: 212px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+  .endlogo { display: flex; align-items: center; gap: 16px; }
+  .endlogo .word { font-size: 40px; font-weight: 800; letter-spacing: -1.1px; }
+  .endlogo .word b { font-weight: 300; color: var(--primary); }
+  .endurl { font-size: 23px; color: var(--muted); letter-spacing: .4px; }
+</style>
+</head>
+<body>
+<div id="frame">
+  <div class="grid-bg"></div>
+  <div class="wash"></div>
+  <div class="vignette"></div>
+
+  <div class="brandmark" id="brandmark">
+    <svg width="40" height="40" viewBox="0 0 48 48" aria-hidden="true">
+      <defs><linearGradient id="bm" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#0066ff"/><stop offset="55%" stop-color="#0052cc"/><stop offset="100%" stop-color="#00338d"/>
+      </linearGradient></defs>
+      <g fill="url(#bm)"><rect x="5" y="5" width="7" height="38" rx="2"/><rect x="5" y="5" width="38" height="7" rx="2"/><rect x="36" y="16" width="7" height="27" rx="2"/></g>
+      <circle cx="22" cy="26" r="4.4" fill="#00b874"/><circle cx="22" cy="26" r="2" fill="#fff"/>
+    </svg>
+    <div class="word">Merchant<b>Gate</b></div>
+  </div>
+  <div class="urlpill mono" id="urlpill"><span class="dot"></span>merchantgate.vercel.app</div>
+
+  <!-- ============ SCENE 1 ============ -->
+  <div class="scene" id="s1">
+    <div class="chatwrap">
+      <div class="chat" id="s1-chat">
+        <div class="head">
+          <div class="who">
+            <div class="av">A</div>
+            <div>
+              <div class="t1">Buyer agent <span class="mono">agt_apollo_buyer_v1</span></div>
+              <div class="t2 mono">Nimbus Gear &amp; Electronics · agentpay-commerce.v1</div>
+            </div>
+          </div>
+          <div class="mono" id="s1-trace" style="font-size:14px;color:var(--muted);letter-spacing:.04em">trace_id</div>
+        </div>
+        <div class="thread">
+          <div class="bubble agent">
+            <div class="who-tag mono">inbound · POST /v1/agent/checkout</div>
+            <span id="s1-type"></span><span class="caret" id="s1-caret"></span>
+          </div>
+          <div class="gate-reply" id="s1-reply">
+            <div class="stamp mono" id="s1-stamp">
+              <svg aria-hidden="true" width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              DENY
+            </div>
+            <div class="reasons">
+              <div class="reason mono" data-i="0">INTERNAL_VERIFICATION_ERROR</div>
+              <div class="reason mono" data-i="1">Sanitise &amp; enforce deterministic schema</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption" id="s1-caption" style="top:792px;opacity:0">Every LLM-run storefront loses the sale right here.</div>
+  </div>
+
+  <!-- ============ SCENE 2 ============ -->
+  <div class="scene" id="s2" style="display:none">
+    <div class="herostage">
+      <div class="h1" id="s2-h1">AI agents are the</div>
+      <div class="h1 grad" id="s2-h1b">new customers.</div>
+      <div class="h1" id="s2-h1c">Prepare your store.</div>
+      <div class="h2" id="s2-h2" style="opacity:0">The merchant backend that AI buyer agents can discover,<br/>query, negotiate with and pay — with a full console on top.</div>
+      <div class="tagrow" id="s2-tags" style="opacity:0">
+        <div class="tag"><i style="background:#0066ff"></i>Deterministic pricing core</div>
+        <div class="tag"><i style="background:#7c5cff"></i>Policy gate · ALLOW / STEP_UP / DENY</div>
+        <div class="tag"><i style="background:#00b874"></i>Razorpay settlement</div>
+        <div class="tag"><i style="background:#ffb822"></i>Append-only audit hash chain</div>
+      </div>
+    </div>
+    <div class="browser" id="s2-browser" style="left:1300px;top:206px;width:552px;opacity:0">
+      <div class="bar">
+        <i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i>
+        <div class="url mono"><span style="color:#28c840">●</span> merchantgate.vercel.app</div>
+      </div>
+      <div class="shot"><img src="./shots/c-hero.png" alt=""/></div>
+    </div>
+  </div>
+
+  <!-- ============ SCENE 3 ============ -->
+  <div class="scene" id="s3" style="display:none">
+    <div class="proto">
+      <div class="panel" id="s3-termpanel" style="width:1010px">
+        <div class="phead">
+          <span style="width:11px;height:11px;border-radius:999px;background:#00b874;display:block;flex:none"></span>
+          <span class="mono" style="font-weight:600">agentpay-commerce.v1</span>
+          <span class="sub">Nimbus Gear &amp; Electronics</span>
+          <span class="tagv mono">mch_nimbus_gear_001</span>
+        </div>
+        <div class="term" id="s3-term"></div>
+        <div class="tfoot" id="s3-foot">
+          <div class="tf-top">
+            <span class="tf-dec mono" id="s3-dec">ALLOW</span>
+            <span class="tf-why mono" id="s3-why">MANDATE_CONSTRAINTS_SATISFIED</span>
+          </div>
+          <div class="tf-trace mono">trace_01m3pw8f82s9tvnywgn2ehsehc · appended to the hash chain</div>
+        </div>
+      </div>
+      <div class="rightcol">
+        <div class="panel mandate">
+          <div class="phead">
+            <span style="color:var(--primary)">◆</span>
+            <span>Authoritative quote</span>
+            <span class="tagv mono">cart_mandate.v1</span>
+          </div>
+          <div class="quote">
+            <div class="qrow"><span class="k">Nimbus 75 Mechanical Keyboard × 1</span><span class="v num">₹3,499.00</span></div>
+            <div class="qrow"><span class="k">Tax · 1800 bps</span><span class="v mut num">₹629.82</span></div>
+            <div class="qrow"><span class="k">Shipping</span><span class="v mut num">₹0.00</span></div>
+            <div class="qrow total"><span class="k">Grand total</span><span class="v num" id="s3-total">₹4,128.82</span></div>
+            <div class="hashbox">
+              <div class="lbl mono">devProof · sha256-canonical-json</div>
+              <div class="val mono" id="s3-hash"></div>
+            </div>
+          </div>
+        </div>
+        <div class="freeze" id="s3-freeze">
+          <div class="fh">
+            <span class="fl mono">PRICE FROZEN</span>
+            <span class="fv num" id="s3-clock">14:59</span>
+          </div>
+          <div class="track"><div class="fill" id="s3-fill" style="width:100%"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="sticker" id="s3-sticker" style="opacity:0">The agent asks. Deterministic code answers.</div>
+  </div>
+
+  <!-- ============ SCENE 4 ============ -->
+  <div class="scene" id="s4" style="display:none">
+    <div class="gatewrap">
+      <div class="shotcard" id="s4-shot"><img src="./shots/c-policy.png" alt="Policy Engine Verifications"/></div>
+      <div class="denybox" id="s4-deny" style="opacity:0;transform:translateY(18px)">
+        <div class="dh">
+          <span style="width:26px;height:26px;border-radius:999px;background:var(--error);color:#fff;display:flex;align-items:center;justify-content:center;flex:none">
+            <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </span>
+          <span class="t">DENY · autonomous, no human in the loop</span>
+          <span class="s mono">trace_01m3pw8j5q</span>
+        </div>
+        <div class="dc">
+          <div class="codes">
+            <span class="code mono" data-i="0">TRANSACTION_LIMIT_EXCEEDED</span>
+            <span class="code mono" data-i="1">ROLLING_BUDGET_EXHAUSTED</span>
+            <span class="code mono" data-i="2">ROLLING_BUDGET_REMAINING_2000000</span>
+          </div>
+          <div class="compare">
+            <div class="cmp over" data-i="0"><span class="k">Agent asked for</span><span class="v num">₹1,53,398.82</span></div>
+            <div class="vsg mono">vs</div>
+            <div class="cmp limit" data-i="1"><span class="k">User mandate allows</span><span class="v num">₹5,000.00</span></div>
+            <div style="margin-left:auto;text-align:right">
+              <div class="k" style="font-size:15px;color:var(--muted);letter-spacing:.05em">STEP-UP QUEUE</div>
+              <div class="num" style="font-size:20px;color:var(--warning-deep);font-weight:650;margin-top:5px">6 waiting on a human</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="controls" id="s4-controls">
+      <div class="ch"><span style="color:var(--primary)">◈</span> Merchant-controlled policy</div>
+      <div class="crow"><span class="k">Slippage tolerance</span><span class="v num">200 bps</span></div>
+      <div class="crow"><span class="k">Surge pricing</span><span class="v num" style="color:var(--warning-deep)">+15%</span></div>
+      <div class="crow"><span class="k">Rolling 30-day budget left</span><span class="v num">₹15,871.18</span></div>
+      <div class="crow"><span class="k">Campaign: Accessory Week</span><span class="v num" style="color:var(--success-deep)">−10%</span></div>
+      <div class="crow"><span class="k">Quote validity</span><span class="v num">15 min</span></div>
+      <div class="crow"><span class="k">Catalogue</span><span class="v num">13 SKUs · 1,505 in stock</span></div>
+      <div class="crow"><span class="k">AI sales channel</span><span class="v ok" style="display:flex;align-items:center;gap:10px">Active <span class="sw"></span></span></div>
+    </div>
+    <div class="caption" id="s4-cap" style="top:862px;opacity:0">Prices, policy and availability stay on this side of the wire.</div>
+  </div>
+
+  <!-- ============ SCENE 5 ============ -->
+  <div class="scene" id="s5" style="display:none">
+    <div class="console" id="s5-console" style="opacity:0"><img src="./shots/c-console.png" alt="Merchant console"/></div>
+    <div class="punch" id="s5-punch" style="opacity:0">
+      <div class="l1" id="s5-l1">The LLM proposes.</div>
+      <div class="l2" id="s5-l2"><span class="grad">Deterministic code disposes.</span></div>
+    </div>
+      <div class="statrow" id="s5-stats" style="opacity:0">
+        <div class="stat" data-i="0"><span class="v num">₹7,35,412.21</span><span class="k">agent GMV settled</span></div>
+        <div class="stat" data-i="1"><span class="v num">100</span><span class="k">quote requests</span></div>
+        <div class="stat" data-i="2"><span class="v num" style="color:var(--success-deep)">69</span><span class="k">allowed · 6 step-ups</span></div>
+        <div class="stat" data-i="3"><span class="v num" style="color:var(--error-deep)">25</span><span class="k">denied by the gate</span></div>
+      </div>
+    <div class="endcard" id="s5-end" style="opacity:0">
+      <div class="endlogo">
+        <svg width="54" height="54" viewBox="0 0 48 48" aria-hidden="true">
+          <defs><linearGradient id="em" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#0066ff"/><stop offset="55%" stop-color="#0052cc"/><stop offset="100%" stop-color="#00338d"/>
+          </linearGradient></defs>
+          <g fill="url(#em)"><rect x="5" y="5" width="7" height="38" rx="2"/><rect x="5" y="5" width="38" height="7" rx="2"/><rect x="36" y="16" width="7" height="27" rx="2"/></g>
+          <circle cx="22" cy="26" r="4.4" fill="#00b874"/><circle cx="22" cy="26" r="2" fill="#fff"/>
+        </svg>
+        <div class="word">Merchant<b>Gate</b></div>
+      </div>
+      <div class="endurl mono">merchantgate.vercel.app</div>
+    </div>
+  </div>
+
+  <div id="dip"></div>
+</div>
+<script src="./timeline.js"></script>
+</body>
+</html>
