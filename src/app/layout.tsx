@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Inter } from "next/font/google";
+import { rootMetadata } from "@/lib/seo";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -8,13 +9,13 @@ const inter = Inter({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: "MerchantGate | AI-Native Commerce Infrastructure",
-    template: "%s | MerchantGate",
-  },
-  description:
-    "Merchant platform built for AI buyer agents with mandate verification, authoritative quotes, and policy gates.",
+export const metadata: Metadata = rootMetadata;
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
+    { media: "(prefers-color-scheme: dark)", color: "#12141c" },
+  ],
 };
 
 export default function RootLayout({

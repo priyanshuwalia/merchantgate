@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import { OnboardingWizard } from "@/components/signup/OnboardingWizard";
 
 export const metadata: Metadata = {
-  title: "Sign Up — MerchantGate",
+  title: "Sign Up",
   description: "Create your MerchantGate merchant account",
+  robots: { index: false, follow: false },
 };
 
 export default function SignupPage() {

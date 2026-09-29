@@ -8,9 +8,20 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { LogoLockup } from "@/components/branding/Logo";
 import { LaunchFilm } from "@/components/landing/launch-film";
+import { openGraphFor } from "@/lib/seo";
+
+// The landing page is the only route that should claim a canonical URL, so this
+// lives here rather than in the root layout (which every route inherits from).
+// Next.js replaces nested metadata objects instead of deep-merging them, so the
+// full openGraph block is re-supplied via the shared helper.
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+  openGraph: openGraphFor("/"),
+};
 
 export default function LandingPage() {
   return (
