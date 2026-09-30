@@ -1,7 +1,16 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
-import { cartMandates, db, paymentActions, products } from "@/db";
+import {
+  cartMandates,
+  db,
+  paymentActions,
+  products,
+  runTransaction,
+  toStatement,
+} from "@/db";
 import { logAuditEvent } from "@/lib/audit/logger";
+import { authorizeSettlement } from "@/lib/auth/settlement-authz";
+import { getMerchantContext } from "@/lib/merchant/context";
 import { verifyPaymentSignature } from "@/lib/payments/razorpay";
 import { generateTraceId } from "@/lib/utils";
 
@@ -61,6 +70,38 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Settlement authorization. This route had NO authentication at all — it
+    // sat under the public `/v1/agent` prefix with no credential check, so any
+    // caller who could guess or harvest a `razorpay_order_id` could drive the
+    // completion path. Reading a public order id must not be authority to mark
+    // it paid.
+    const context = await getMerchantContext();
+    const authz = await authorizeSettlement(
+      request,
+      context.merchant.config as Record<string, unknown> | null,
+    );
+    if (!authz.ok && authz.response) {
+      await logAuditEvent({
+        traceId,
+        actorType: "system",
+        actorId: "payment_verify_authz",
+        eventType: "security_settlement_unauthorized",
+        cartMandateId: action.cart_mandate_id,
+        paymentActionId: action.id,
+        explanation:
+          "Rejected payment verification: no verified agent API key and no merchant session.",
+        metadata: {
+          claimedAgentId: authz.agentId,
+          orderId,
+          remoteIp:
+            request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+            null,
+        },
+      });
+      return authz.response;
+    }
+    const authAgentId = authz.agentId;
+
     const keySecret = process.env.RAZORPAY_KEY_SECRET || "";
     const isProd = process.env.NODE_ENV === "production";
 
@@ -73,9 +114,39 @@ export async function POST(request: NextRequest) {
         secret: keySecret,
       });
     } else if (!isProd) {
-      // Test-mode settlement without an external signature (no real keys).
-      // In production a signature is always required.
-      verified = true;
+      // Unsigned settlement bypass. This used to be implied by `NODE_ENV !==
+      // "production"` alone, which meant "ship without a signature check" was
+      // one careless env var away on a real deployment. It is now an explicit,
+      // opt-in flag that defaults OFF, so the safe state is the default state.
+      const allowUnsigned =
+        process.env.ALLOW_UNSIGNED_SETTLEMENT === "true" ||
+        process.env.ALLOW_UNSIGNED_SETTLEMENT === "1";
+      if (allowUnsigned) {
+        // Test-mode settlement without an external signature (no real keys).
+        verified = true;
+      } else {
+        await logAuditEvent({
+          traceId,
+          actorType: "system",
+          actorId: "payment_verify_guard",
+          eventType: "security_unsigned_settlement_blocked",
+          paymentActionId: action.id,
+          cartMandateId: action.cart_mandate_id,
+          explanation:
+            "Rejected unsigned payment verification: ALLOW_UNSIGNED_SETTLEMENT is not enabled.",
+          metadata: { orderId, paymentId, noSettlement: true },
+        });
+        return NextResponse.json(
+          {
+            success: false,
+            error: "SIGNATURE_REQUIRED",
+            decision: "DENY",
+            message:
+              "razorpaySignature is required. Unsigned settlement is disabled.",
+          },
+          { status: 403 },
+        );
+      }
     }
 
     if (!verified) {
@@ -106,42 +177,106 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await db
+    // ─── ATOMIC SETTLEMENT CLAIM ───────────────────────────────────────────
+    // This endpoint used to read the action, check a status, then write — with no
+    // auth, no transaction, and an unguarded per-item stock decrement. Two
+    // concurrent calls (or one replayed call) both passed the check and both
+    // decremented stock, and anyone could complete an arbitrary order.
+    //
+    // The claim is a single conditional UPDATE ... RETURNING, so the database
+    // itself elects exactly one winner. Side effects run only for that winner,
+    // inside one transaction. Losers return the already-settled result instead
+    // of doing damage.
+    const claimed = await db
       .update(paymentActions)
       .set({
         status: "completed",
         razorpay_payment_id: paymentId || action.razorpay_payment_id,
         updated_at: new Date(),
       })
-      .where(eq(paymentActions.id, action.id));
+      .where(
+        and(
+          eq(paymentActions.id, action.id),
+          ne(paymentActions.status, "completed"),
+        ),
+      )
+      .returning({ id: paymentActions.id });
 
-    await db
-      .update(cartMandates)
-      .set({ status: "completed" })
-      .where(eq(cartMandates.id, action.cart_mandate_id));
+    if (claimed.length === 0) {
+      await logAuditEvent({
+        traceId,
+        actorType: "system",
+        actorId: "payment_verify_replay_guard",
+        eventType: "security_duplicate_settlement_rejected",
+        paymentActionId: action.id,
+        cartMandateId: action.cart_mandate_id,
+        explanation:
+          "Rejected replayed payment verification: this action was already completed, so no stock, cart or payment side effect was applied.",
+        metadata: {
+          orderId,
+          paymentId,
+          claimed: false,
+          idempotentReplay: true,
+        },
+      });
+
+      return NextResponse.json(
+        {
+          success: true,
+          idempotentReplay: true,
+          status: "completed",
+          paymentActionId: action.id,
+          cartMandateId: action.cart_mandate_id,
+          message:
+            "This payment was already verified and settled. No additional stock or payment effect was applied.",
+        },
+        { status: 200 },
+      );
+    }
 
     const [cart] = await db
       .select()
       .from(cartMandates)
       .where(eq(cartMandates.id, action.cart_mandate_id))
       .limit(1);
-    if (cart) {
-      const items =
-        (cart.items as Array<{ variantId: string; quantity: number }>) || [];
-      for (const item of items) {
-        await db
-          .update(products)
-          .set({
-            stock_quantity: sql`GREATEST(0, stock_quantity - ${item.quantity})`,
-          })
-          .where(eq(products.variant_id, item.variantId));
-      }
-    }
+    const items =
+      (cart?.items as Array<{ variantId: string; quantity: number }>) || [];
+
+    await runTransaction([
+      toStatement(
+        db
+          .update(cartMandates)
+          .set({ status: "completed" })
+          .where(eq(cartMandates.id, action.cart_mandate_id)),
+      ),
+      // One batched UPDATE ... FROM (VALUES ...) rather than a loop, matching
+      // the confirm route's N+1 fix.
+      ...(items.length > 0
+        ? [
+            toStatement(
+              db
+                .update(products)
+                .set({
+                  stock_quantity: sql`GREATEST(0, ${products.stock_quantity} - data.qty)`,
+                })
+                .from(
+                  sql`(VALUES ${sql.join(
+                    items.map(
+                      (i) => sql`(${i.variantId}::text, ${i.quantity}::bigint)`,
+                    ),
+                    sql.raw(", "),
+                  )}) AS data(variant_id, qty)`,
+                )
+                .where(sql`${products.variant_id} = data.variant_id`),
+            ),
+          ]
+        : []),
+    ]);
 
     await logAuditEvent({
       traceId,
       actorType: "agent",
-      actorId: "agent_payment_verify",
+      actorId: authAgentId || "agent_payment_verify",
       eventType: "payment_verified_paid",
       paymentActionId: action.id,
       cartMandateId: action.cart_mandate_id,

@@ -1,18 +1,19 @@
 import crypto from "node:crypto";
-import { and, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import {
   cartMandates,
   db,
   paymentActions,
-  products,
   refundActions,
   runTransaction,
+  sqlClient,
   toStatement,
   webhookEvents,
 } from "@/db";
 import { logAuditEvent } from "@/lib/audit/logger";
 import { verifyWebhookSignature } from "@/lib/payments/razorpay";
+import { claimSettlementSql } from "@/lib/payments/settlement-claim";
 import { generateId, generateTraceId } from "@/lib/utils";
 import type {
   WebhookDedupeCheck,
@@ -239,10 +240,7 @@ export async function POST(request: NextRequest) {
       .update(webhookEvents)
       .set({ status: "received" })
       .where(
-        and(
-          eq(webhookEvents.provider_event_id, providerEventId),
-          eq(webhookEvents.status, "failed"),
-        ),
+        sql`${webhookEvents.provider_event_id} = ${providerEventId} AND ${webhookEvents.status} = 'failed'`,
       )
       .returning({ id: webhookEvents.id });
 
@@ -360,62 +358,53 @@ async function processEvent(params: {
       return;
     }
 
-    const alreadySettled = row.action.status === "completed";
+    // The claim below decides in the database whether this delivery is the
+    // settling one. The previous implementation read the action status and
+    // branched in JS — a TOCTOU that let two deliveries carrying different
+    // `provider_event_id` values both decrement stock for one payment, since the
+    // event-level dedupe only collapses byte-identical repeats.
     const items =
       (row.cart.items as Array<{ variantId: string; quantity: number }>) || [];
 
-    const statements = [
-      toStatement(
-        db
-          .update(paymentActions)
-          .set({
-            status: "completed",
-            razorpay_payment_id: paymentId,
-            updated_at: new Date(),
-          })
-          .where(eq(paymentActions.id, row.action.id)),
-      ),
-      // Only decrement inventory on the FIRST settlement — a duplicate or a
-      // reprocessed delivery must never double-count stock.
-      ...(!alreadySettled
-        ? [
-            toStatement(
-              db
-                .update(cartMandates)
-                .set({ status: "completed" })
-                .where(eq(cartMandates.id, row.cart.id)),
-            ),
-            ...(items.length > 0
-              ? [
-                  toStatement(
-                    db
-                      .update(products)
-                      .set({
-                        stock_quantity: sql`GREATEST(0, ${products.stock_quantity} - data.qty)`,
-                      })
-                      .from(
-                        sql`(VALUES ${sql.join(
-                          items.map(
-                            (i) =>
-                              sql`(${i.variantId}::text, ${i.quantity}::bigint)`,
-                          ),
-                          sql.raw(", "),
-                        )}) AS data(variant_id, qty)`,
-                      )
-                      .where(sql`${products.variant_id} = data.variant_id`),
-                  ),
-                ]
-              : []),
-          ]
-        : []),
+    const claim = claimSettlementSql({
+      actionId: row.action.id,
+      cartId: row.cart.id,
+      items,
+      providerPaymentId: paymentId,
+    });
+    // Standalone (not batched) because we must read the claim outcome to know
+    // whether this delivery performed the settlement.
+    const claimResult = await sqlClient.query(claim.sql, claim.params);
+    const didClaim = Number(claimResult[0]?.claimed_count ?? 0) > 0;
+
+    await runTransaction([
       toStatement(
         db
           .update(webhookEvents)
           .set({ status: "processed" })
           .where(eq(webhookEvents.id, webhookEventId)),
       ),
-    ];
-    await runTransaction(statements);
+    ]);
+
+    if (!didClaim) {
+      await logAuditEvent({
+        traceId,
+        actorType: "system",
+        actorId: "webhook_replay_guard",
+        eventType: "security_duplicate_settlement_rejected",
+        paymentActionId: row.action.id,
+        cartMandateId: row.cart.id,
+        explanation:
+          "Rejected duplicate settlement: this payment action was already completed by a concurrent or earlier delivery, so no stock or cart effect was applied.",
+        metadata: {
+          razorpayOrderId: orderId,
+          razorpayPaymentId: paymentId,
+          webhookEventId,
+          claimed: false,
+          idempotentReplay: true,
+        },
+      });
+    }
 
     await logAuditEvent({
       traceId,
@@ -424,7 +413,7 @@ async function processEvent(params: {
       eventType: "webhook_payment_captured",
       cartMandateId: row.cart.id,
       paymentActionId: row.action.id,
-      explanation: `Razorpay payment ${paymentId} captured for order ${orderId}${alreadySettled ? " (already settled; no re-processing)" : ""}.`,
+      explanation: `Razorpay payment ${paymentId} captured for order ${orderId}${!didClaim ? " (duplicate settlement rejected; no re-processing)" : ""}.`,
       providerRefs: {
         razorpayPaymentId: paymentId,
         razorpayOrderId: orderId,

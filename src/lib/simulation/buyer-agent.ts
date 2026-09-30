@@ -8,16 +8,29 @@ export class SimulatedBuyerAgent {
   public agentVersion: string;
   public userId: string;
   public intentMandate: IntentMandate;
+  /**
+   * Cookie header forwarded from the inbound request, if any.
+   *
+   * Settlement routes require a verified agent key OR a merchant session. The
+   * sandbox deliberately issues no agent keys — the operator drives it from the
+   * dashboard, so the honest credential is the session they are already signed
+   * in with. Browser-driven simulations attach the cookie automatically because
+   * the fetches are same-origin, but this agent runs server-side inside
+   * `/api/simulation/run` and must carry it explicitly, or settlement would 401.
+   */
+  private forwardedCookie?: string;
 
   constructor(config?: {
     agentId?: string;
     agentVersion?: string;
     userId?: string;
     intentMandate?: Partial<IntentMandate>;
+    cookie?: string;
   }) {
     this.agentId = config?.agentId || "agt_apollo_buyer_v1";
     this.agentVersion = config?.agentVersion || "1.0.0";
     this.userId = config?.userId || "user_demo_shopper";
+    this.forwardedCookie = config?.cookie;
 
     const mandateId = config?.intentMandate?.id || generateId("int");
     const digest = generateCanonicalDigest({
@@ -220,7 +233,10 @@ export class SimulatedBuyerAgent {
   ) {
     const res = await fetch(`${baseUrl}/v1/agent/checkout/confirm`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(this.forwardedCookie ? { cookie: this.forwardedCookie } : {}),
+      },
       body: JSON.stringify({
         cartMandateId,
         decisionId,

@@ -174,12 +174,19 @@ export async function authenticateAgentRequest(
 
   // Resolve agent identity from the presented credential.
   let storedKeyHash: string | undefined;
+  // Tracks an ACTUAL successful hash comparison against a registered agent's
+  // stored key. It used to be derived at the end from `Boolean(keyToVerify)`,
+  // i.e. "a key was present" rather than "the key was correct" — so in `demo`
+  // mode, presenting a WRONG key for a KNOWN agent id reported verified, which
+  // would have made it useless as a settlement credential.
+  let keyVerified = false;
   if (keyToVerify) {
     const keyHash = hashAgentKey(keyToVerify);
     const agent = await findAgentByKeyHash(keyHash);
     if (agent) {
       agentId = agent.id;
       storedKeyHash = keyHash;
+      keyVerified = true;
     } else if (bearerMatch) {
       // Bearer key belongs to no registered agent.
       const result: AgentAuthResult = {
@@ -213,11 +220,12 @@ export async function authenticateAgentRequest(
 
       if (storedKeyHash) {
         if (keyToVerify) {
-          const keyVerified = safeEqualHex(
+          const matches = safeEqualHex(
             storedKeyHash,
             hashAgentKey(keyToVerify),
           );
-          if (!keyVerified && mode === "strict") {
+          keyVerified = matches;
+          if (!matches && mode === "strict") {
             const result: AgentAuthResult = {
               ok: false,
               agentId,
@@ -266,7 +274,12 @@ export async function authenticateAgentRequest(
   const rateLimitInfo = checkRateLimit(`${agentId}:${routeNamespace}`, {
     limit: rateLimitPerMinute,
   });
-  if (!rateLimitInfo.ok && mode === "strict") {
+  // Rate limiting is a CONTROL, not a strict-mode nicety: it used to be gated on
+  // `mode === "strict"`, so the default `demo` deployment had no throttle at all
+  // on quote/settlement. It stays in-memory (per-instance) and is therefore a
+  // speed bump, not a guarantee — but "no limit at all" was not acceptable on a
+  // money-moving route.
+  if (!rateLimitInfo.ok) {
     return {
       ok: false,
       agentId,
@@ -294,7 +307,7 @@ export async function authenticateAgentRequest(
     ok: true,
     agentId,
     mode,
-    keyVerified: Boolean(keyToVerify),
+    keyVerified,
     rateLimitInfo,
   };
 }

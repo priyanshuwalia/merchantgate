@@ -1,16 +1,17 @@
-import { and, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import {
   cartMandates,
   db,
   paymentActions,
-  products,
   refundActions,
   runTransaction,
+  sqlClient,
   toStatement,
   webhookEvents,
 } from "@/db";
 import { logAuditEvent } from "@/lib/audit/logger";
+import { claimSettlementSql } from "@/lib/payments/settlement-claim";
 import { verifyStripeWebhook } from "@/lib/payments/stripe";
 import { generateTraceId } from "@/lib/utils";
 import type {
@@ -178,10 +179,7 @@ export async function POST(request: NextRequest) {
       .update(webhookEvents)
       .set({ status: "received" })
       .where(
-        and(
-          eq(webhookEvents.provider_event_id, providerEventId),
-          eq(webhookEvents.status, "failed"),
-        ),
+        sql`${webhookEvents.provider_event_id} = ${providerEventId} AND ${webhookEvents.status} = 'failed'`,
       )
       .returning({ id: webhookEvents.id });
 
@@ -300,18 +298,31 @@ async function processEvent(params: {
       return;
     }
 
-    const alreadySettled = row.action.status === "completed";
+    // The CTE claim below is what actually decides, in the database, whether
+    // this delivery settles. Reading the action status first and branching in JS
+    // was the same TOCTOU that let two Stripe events (e.g.
+    // `payment_intent.succeeded` and `charge.succeeded`) both decrement stock
+    // for one payment.
+
     const chargeId = obj.latest_charge || obj.id || paymentIntentId;
     const items =
       (row.cart.items as Array<{ variantId: string; quantity: number }>) || [];
 
-    const statements = [
+    const claim = claimSettlementSql({
+      actionId: row.action.id,
+      cartId: row.cart.id,
+      items,
+      providerPaymentId: chargeId,
+    });
+    const claimResult = await sqlClient.query(claim.sql, claim.params);
+    const didClaim = Number(claimResult[0]?.claimed_count ?? 0) > 0;
+
+    // Provenance bookkeeping is independent of the claim and stays idempotent.
+    await runTransaction([
       toStatement(
         db
           .update(paymentActions)
           .set({
-            status: "completed",
-            razorpay_payment_id: chargeId,
             provider_metadata: {
               ...((row.action.provider_metadata as Record<string, unknown>) ||
                 {}),
@@ -320,52 +331,39 @@ async function processEvent(params: {
                 (row.action.provider_metadata as Record<string, unknown> | null)
                   ?.method || "stripe_card",
               chargeId,
-              settledVia: alreadySettled ? "api" : "webhook",
+              settledVia: didClaim ? "webhook" : "api",
             },
             updated_at: new Date(),
           })
           .where(eq(paymentActions.id, row.action.id)),
       ),
-      // Only decrement inventory on the FIRST settlement.
-      ...(!alreadySettled
-        ? [
-            toStatement(
-              db
-                .update(cartMandates)
-                .set({ status: "completed" })
-                .where(eq(cartMandates.id, row.cart.id)),
-            ),
-            ...(items.length > 0
-              ? [
-                  toStatement(
-                    db
-                      .update(products)
-                      .set({
-                        stock_quantity: sql`GREATEST(0, ${products.stock_quantity} - data.qty)`,
-                      })
-                      .from(
-                        sql`(VALUES ${sql.join(
-                          items.map(
-                            (i) =>
-                              sql`(${i.variantId}::text, ${i.quantity}::bigint)`,
-                          ),
-                          sql.raw(", "),
-                        )}) AS data(variant_id, qty)`,
-                      )
-                      .where(sql`${products.variant_id} = data.variant_id`),
-                  ),
-                ]
-              : []),
-          ]
-        : []),
       toStatement(
         db
           .update(webhookEvents)
           .set({ status: "processed" })
           .where(eq(webhookEvents.id, webhookEventId)),
       ),
-    ];
-    await runTransaction(statements);
+    ]);
+
+    if (!didClaim) {
+      await logAuditEvent({
+        traceId,
+        actorType: "system",
+        actorId: "webhook_replay_guard",
+        eventType: "security_duplicate_settlement_rejected",
+        paymentActionId: row.action.id,
+        cartMandateId: row.cart.id,
+        explanation:
+          "Rejected duplicate settlement: this payment action was already completed, so no stock or cart effect was applied.",
+        metadata: {
+          paymentIntentId,
+          chargeId,
+          webhookEventId,
+          claimed: false,
+          idempotentReplay: true,
+        },
+      });
+    }
 
     await logAuditEvent({
       traceId,
@@ -374,7 +372,7 @@ async function processEvent(params: {
       eventType: "webhook_payment_captured",
       cartMandateId: row.cart.id,
       paymentActionId: row.action.id,
-      explanation: `Stripe PaymentIntent ${paymentIntentId} succeeded${alreadySettled ? " (already settled; no re-processing)" : ""}. Charge ${chargeId} captured via webhook.`,
+      explanation: `Stripe PaymentIntent ${paymentIntentId} succeeded${!didClaim ? " (duplicate settlement rejected; no re-processing)" : ""}. Charge ${chargeId} captured via webhook.`,
       providerRefs: {
         stripePaymentIntent: paymentIntentId,
         stripeChargeId: chargeId,

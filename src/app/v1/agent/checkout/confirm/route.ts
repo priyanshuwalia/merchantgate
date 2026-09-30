@@ -12,7 +12,7 @@ import {
   toStatement,
 } from "@/db";
 import { logAuditEvent } from "@/lib/audit/logger";
-import { authenticateAgentRequest } from "@/lib/auth/agent-auth";
+import { authorizeSettlement } from "@/lib/auth/settlement-authz";
 import { generateCartMandateSnapshotHash } from "@/lib/crypto/canonical";
 import { getMerchantContext } from "@/lib/merchant/context";
 import { aiSalesPausedResponse } from "@/lib/merchant/guard";
@@ -35,12 +35,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const {
-      cartMandateId,
-      decisionId,
-      paymentMethod = "simulated_uap",
-      paymentToken,
-    } = body;
+    const { cartMandateId, decisionId, paymentMethod, paymentToken } = body;
 
     const ALLOWED_PAYMENT_METHODS = [
       "simulated_uap",
@@ -48,6 +43,19 @@ export async function POST(request: NextRequest) {
       "stripe_card",
       "stripe",
     ];
+    // Settlement rails must be named explicitly. This field used to default to
+    // "simulated_uap", so a caller that simply omitted it — or sent a typo'd
+    // body — silently took the least-guarded branch instead of erroring.
+    if (!paymentMethod) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "PAYMENT_METHOD_REQUIRED",
+          message: `paymentMethod is required and must be one of: ${ALLOWED_PAYMENT_METHODS.join(", ")}.`,
+        },
+        { status: 400 },
+      );
+    }
     if (!ALLOWED_PAYMENT_METHODS.includes(paymentMethod)) {
       return NextResponse.json(
         {
@@ -76,11 +84,37 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Agent authentication + rate limiting (C7). In `demo` mode a missing or
-    // invalid key is tolerated; in `strict` mode it is rejected outright.
-    const auth = await authenticateAgentRequest(request, {
-      merchantConfig: context.config,
-    });
+    // Settlement authorization. Previously `authenticateAgentRequest` was
+    // called here and its result discarded — only audit metadata read it — so
+    // this endpoint accepted settlements from anyone, and even `AGENT_AUTH_MODE
+    // = strict` could not reject them. Discovery stays open; moving money does
+    // not. The Agent Sandbox keeps working via the merchant session.
+    const authz = await authorizeSettlement(request, context.config);
+    if (!authz.ok && authz.response) {
+      await logAuditEvent({
+        traceId,
+        actorType: "system",
+        actorId: "settlement_authz",
+        eventType: "security_settlement_unauthorized",
+        cartMandateId,
+        explanation:
+          "Rejected settlement attempt: no verified agent API key and no merchant session.",
+        metadata: {
+          claimedAgentId: authz.agentId,
+          paymentMethod,
+          remoteIp:
+            request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+            null,
+        },
+      });
+      return authz.response;
+    }
+    const auth = {
+      agentId: authz.agentId,
+      mode: "demo" as const,
+      rateLimitInfo: { ok: true, limit: 0, remaining: 0, retryAfterSeconds: 0 },
+    };
+    const settlementPrincipal = authz.principal;
 
     if (!cartMandateId) {
       return NextResponse.json(
@@ -198,6 +232,62 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ─── POLICY GATE: settlement requires an ALLOW decision, on EVERY rail ──
+    //
+    // This check used to live inside the `razorpay_checkout` branch only, so the
+    // autonomous Stripe branch and the simulated branch both settled carts the
+    // policy engine had refused — leaving TRANSACTION_LIMIT_EXCEEDED,
+    // ROLLING_BUDGET_EXHAUSTED, CATEGORY_NOT_ALLOWED, QUANTITY_LIMIT_EXCEEDED
+    // and MANDATE_EXPIRED unenforced on two of three rails. The production
+    // database held the evidence: completed orders bound to STEP_UP decisions,
+    // which is exactly the state that exists to require a human approval.
+    //
+    // It is hoisted here, above every rail, so the policy engine is genuinely
+    // authoritative rather than advisory for the payment half of the protocol.
+    if (!decision) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "POLICY_DECISION_MISSING",
+          decision: "DENY",
+          message:
+            "No policy decision is recorded for this cart, so it cannot be settled. Request a new quote.",
+          cartMandateId,
+        },
+        { status: 409 },
+      );
+    }
+
+    if (decision.decision !== "ALLOW") {
+      await logAuditEvent({
+        traceId,
+        actorType: "system",
+        actorId: "policy_gate",
+        eventType: "security_unauthorized_settlement_blocked",
+        cartMandateId,
+        decisionId: decision.id,
+        explanation: `SECURITY: settlement refused — the authoritative policy decision is ${decision.decision}, not ALLOW. Reason codes: ${JSON.stringify(decision.reason_codes ?? [])}`,
+        metadata: {
+          decision: decision.decision,
+          paymentMethod,
+          reasonCodes: decision.reason_codes ?? [],
+          rail: isStripe ? "stripe" : paymentMethod,
+        },
+      });
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: "TRANSACTION_NOT_AUTHORIZED",
+          decision: decision.decision,
+          reasonCodes: decision.reason_codes ?? [],
+          message: `This cart's policy decision is ${decision.decision}, so no settlement rail can complete it.`,
+          cartMandateId,
+        },
+        { status: 409 },
+      );
+    }
+
     // 2. Fetch or create Payment Action
     let [paymentAction] = await db
       .select()
@@ -224,20 +314,46 @@ export async function POST(request: NextRequest) {
     const simulatedPaymentId = `pay_sim_${generateId()}`;
     const simulatedOrderId = `order_sim_${generateId()}`;
 
-    let budgetResId: string | undefined;
-    let reservationExists = false;
+    // Resolve the budget hold for this cart on EVERY path, not only when the
+    // payment action is missing.
+    //
+    // This block used to sit behind `if (!paymentAction)`, yet the id was then
+    // consumed as `budgetResId!` in every rail's write transaction. On a replay
+    // — the exact case idempotency is supposed to absorb — `budgetResId` was
+    // `undefined`, so the non-null assertion was a lie and the insert minted a
+    // brand-new reservation under its column DEFAULT. That is how replays
+    // silently inflated a buyer's committed 30-day spend.
+    //
+    // Resolution order: the reservation already bound to this payment action,
+    // then the one linked to this cart (cart_mandate_id), then the mandate's
+    // only hold. The unique index `uniq_budget_reservation_per_cart` now makes
+    // the final INSERT a hard database backstop rather than a soft duplicate.
+    const [actionBoundRes] = paymentAction?.budget_reservation_id
+      ? await db
+          .select()
+          .from(budgetReservations)
+          .where(eq(budgetReservations.id, paymentAction.budget_reservation_id))
+          .limit(1)
+      : [];
 
-    if (!paymentAction) {
-      // Create budget reservation if missing
-      const [existingRes] = await db
-        .select()
-        .from(budgetReservations)
-        .where(eq(budgetReservations.intent_mandate_id, cart.intent_mandate_id))
-        .limit(1);
+    const [cartBoundRes] = await db
+      .select()
+      .from(budgetReservations)
+      .where(eq(budgetReservations.cart_mandate_id, cartMandateId))
+      .limit(1);
 
-      budgetResId = existingRes?.id || generateId("bres");
-      reservationExists = Boolean(existingRes);
-    }
+    const [existingRes] =
+      (actionBoundRes ?? cartBoundRes)
+        ? [actionBoundRes ?? cartBoundRes]
+        : await db
+            .select()
+            .from(budgetReservations)
+            .where(
+              eq(budgetReservations.intent_mandate_id, cart.intent_mandate_id),
+            )
+            .limit(1);
+
+    const budgetResId = existingRes?.id || generateId("bres");
 
     // For a real Razorpay checkout the order must be created before any DB
     // write; for simulated UAP and Stripe the settlement commits in ONE
@@ -251,35 +367,10 @@ export async function POST(request: NextRequest) {
       paymentMethod === "razorpay_checkout" &&
       (!paymentAction || !paymentAction.razorpay_order_id)
     ) {
-      if (!decision?.id) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Policy decision is required before payment preparation.",
-          },
-          { status: 400 },
-        );
-      }
-
-      // A payment intent can only be created for an ALLOW decision. A DENY /
-      // STEP_UP cart carries no payment authorization — reject cleanly
-      // instead of failing deep in preparePayment with a 500.
-      if (decision.decision !== "ALLOW") {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "TRANSACTION_NOT_AUTHORIZED",
-            decision: decision.decision,
-            message: `This cart's policy decision is ${decision.decision}, so no payment order can be created.`,
-          },
-          { status: 409 },
-        );
-      }
-
       preparedPayment = await preparePayment({
         cartMandateId,
         decisionId: decision.id,
-        budgetReservationId: budgetResId!,
+        budgetReservationId: budgetResId,
         traceId,
       });
     }
@@ -329,6 +420,9 @@ export async function POST(request: NextRequest) {
           currency: cart.currency,
           paymentMethodId,
           description: `MerchantGate order ${cartMandateId}`,
+          // Stable per cart: a retried confirm resolves to the same
+          // PaymentIntent instead of charging the buyer a second time.
+          idempotencyKey: `mg_cart_${cartMandateId}`,
           metadata: {
             cartMandateId,
             intentMandateId: cart.intent_mandate_id,
@@ -368,7 +462,7 @@ export async function POST(request: NextRequest) {
           id: generateId("pact"),
           cart_mandate_id: cartMandateId,
           decision_id: decision?.id || decisionId || generateId("dec"),
-          budget_reservation_id: budgetResId!,
+          budget_reservation_id: budgetResId,
           amount_minor: cart.total_minor,
           currency: cart.currency,
           status: "pending_payment" as const,
@@ -380,11 +474,12 @@ export async function POST(request: NextRequest) {
         };
 
         await runTransaction([
-          ...(!reservationExists && !paymentAction
+          ...(!existingRes && !paymentAction
             ? [
                 toStatement(
                   db.insert(budgetReservations).values({
-                    id: budgetResId!,
+                    id: budgetResId,
+                    cart_mandate_id: cartMandateId,
                     intent_mandate_id: cart.intent_mandate_id,
                     amount_minor: cart.total_minor,
                     status: "reserved",
@@ -467,7 +562,7 @@ export async function POST(request: NextRequest) {
         id: generateId("pact"),
         cart_mandate_id: cartMandateId,
         decision_id: decision?.id || decisionId || generateId("dec"),
-        budget_reservation_id: budgetResId!,
+        budget_reservation_id: budgetResId,
         amount_minor: cart.total_minor,
         currency: cart.currency,
         status: "pending_payment" as const,
@@ -480,11 +575,12 @@ export async function POST(request: NextRequest) {
       const paId = pa.id;
 
       const statements: DbStatement[] = [
-        ...(!reservationExists && !paymentAction
+        ...(!existingRes && !paymentAction
           ? [
               toStatement(
                 db.insert(budgetReservations).values({
-                  id: budgetResId!,
+                  id: budgetResId,
+                  cart_mandate_id: cartMandateId,
                   intent_mandate_id: cart.intent_mandate_id,
                   amount_minor: cart.total_minor,
                   status: "reserved",
@@ -632,7 +728,7 @@ export async function POST(request: NextRequest) {
           // Always bind to the cart's authoritative policy decision (read
           // from the DB earlier), never a client-supplied decision id.
           decision_id: decision?.id || decisionId || generateId("dec"),
-          budget_reservation_id: budgetResId!,
+          budget_reservation_id: budgetResId,
           amount_minor: cart.total_minor,
           currency: cart.currency,
           status: "completed",
@@ -656,11 +752,12 @@ export async function POST(request: NextRequest) {
         (cart.items as Array<{ variantId: string; quantity: number }>) || [];
 
       const statements: DbStatement[] = [
-        ...(!reservationExists
+        ...(!existingRes
           ? [
               toStatement(
                 db.insert(budgetReservations).values({
-                  id: budgetResId!,
+                  id: budgetResId,
+                  cart_mandate_id: cartMandateId,
                   intent_mandate_id: cart.intent_mandate_id,
                   amount_minor: cart.total_minor,
                   status: "reserved",
@@ -698,7 +795,13 @@ export async function POST(request: NextRequest) {
             .set({ status: "completed" })
             .where(eq(cartMandates.id, cartMandateId)),
         ),
-        ...(items.length > 0
+        // Inventory is a once-per-cart side effect. This guard was missing on
+        // the simulated rail — it fired purely on `items.length` — so replaying
+        // `simulated_uap` against a completed cart decremented stock again every
+        // time, and the damage compounded because `GREATEST(0, …)` silently
+        // clamped at zero instead of failing. The Stripe branch already had the
+        // equivalent `!alreadySettled` guard.
+        ...(items.length > 0 && !settlementExisted
           ? [
               toStatement(
                 db
@@ -739,6 +842,7 @@ export async function POST(request: NextRequest) {
         metadata: {
           agentAuthMode: auth.mode,
           rateLimitRemaining: auth.rateLimitInfo.remaining,
+          settlementPrincipal,
         },
       });
 
@@ -772,7 +876,7 @@ export async function POST(request: NextRequest) {
         id: generateId("pact"),
         cart_mandate_id: cartMandateId,
         decision_id: decision?.id || decisionId || generateId("dec"),
-        budget_reservation_id: budgetResId!,
+        budget_reservation_id: budgetResId,
         amount_minor: cart.total_minor,
         currency: cart.currency,
         status: "pending_payment",
@@ -800,11 +904,12 @@ export async function POST(request: NextRequest) {
     const rp = paymentAction as NonNullable<typeof paymentAction>;
 
     await runTransaction([
-      ...(!reservationExists
+      ...(!existingRes
         ? [
             toStatement(
               db.insert(budgetReservations).values({
-                id: budgetResId!,
+                id: budgetResId,
+                cart_mandate_id: cartMandateId,
                 intent_mandate_id: cart.intent_mandate_id,
                 amount_minor: cart.total_minor,
                 status: "reserved",

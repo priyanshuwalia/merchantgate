@@ -38,6 +38,34 @@ export async function POST(request: NextRequest) {
     const storeName =
       typeof body.storeName === "string" ? body.storeName.trim() : "";
 
+    // Self-service signup was completely open, so anyone on the internet could
+    // mint a merchant tenant. Rate limiting only slows that down; it does not
+    // prevent it. `ALLOWED_SIGNUP_EMAILS` turns it into an invite-only list.
+    //
+    // Unset => open, preserving local dev and any deliberately self-serve
+    // deployment. Set => exact (case-insensitive) match against the list. The
+    // check runs after the body is parsed so the address is known and is placed
+    // before any DB write.
+    const allowlistRaw = process.env.ALLOWED_SIGNUP_EMAILS?.trim();
+    if (allowlistRaw) {
+      const allowed = new Set(
+        allowlistRaw
+          .split(",")
+          .map((e) => e.trim().toLowerCase())
+          .filter(Boolean),
+      );
+      if (!allowed.has(email)) {
+        return NextResponse.json(
+          {
+            error: "SIGNUP_NOT_INVITED",
+            message:
+              "Signups are invite-only on this deployment. Contact the platform operator for an invitation.",
+          },
+          { status: 403 },
+        );
+      }
+    }
+
     if (!email || !email.includes("@") || email.length > 255) {
       return NextResponse.json(
         {

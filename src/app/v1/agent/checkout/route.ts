@@ -13,6 +13,7 @@ import {
   db,
   intentMandates,
   isSerializationConflict,
+  isUniqueViolation,
   paymentActions,
   policyDecisions,
   products,
@@ -21,6 +22,10 @@ import {
 } from "@/db";
 import { logAuditEvent } from "@/lib/audit/logger";
 import { authenticateAgentRequest } from "@/lib/auth/agent-auth";
+import {
+  findQuoteByIdempotencyKey,
+  normalizeIdempotencyKey,
+} from "@/lib/checkout/idempotency";
 import { generateCartMandateSnapshotHash } from "@/lib/crypto/canonical";
 import { getMerchantAgentRules } from "@/lib/merchant/agent";
 import {
@@ -101,6 +106,67 @@ export async function POST(request: Request) {
     // requests in strict mode; throttles everywhere.
     const auth = await authenticateAgentRequest(request, { merchantConfig });
     if (!auth.ok && auth.response) return auth.response;
+
+    // ─── LAYER 2: CLIENT IDEMPOTENCY KEY ───────────────────────────────────
+    // A retried /checkout used to mint a brand-new quote every time: a new
+    // `cart_mandates` row, a new budget reservation, a new provider order, and
+    // another increment of campaign spend — for a cart the buyer already had.
+    // The confirmation guard downstream cannot help, because each retry produced
+    // a *different* cart id, so nothing looked like a replay.
+    //
+    // An explicit `Idempotency-Key` is checked here, before ANY side effect, so
+    // a retry is absorbed without creating a second order. The value is persisted
+    // on `cart_mandates.idempotency_key` behind `uniq_cart_idempotency`, which
+    // makes the key a database-enforced promise rather than a convention.
+    const idempotencyKey = normalizeIdempotencyKey(
+      request.headers.get("idempotency-key"),
+    );
+    if (idempotencyKey === false) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "INVALID_IDEMPOTENCY_KEY",
+          message:
+            "Idempotency-Key must be 8–200 characters of printable ASCII (no whitespace).",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (idempotencyKey) {
+      const replayed = await findQuoteByIdempotencyKey(
+        merchantId,
+        idempotencyKey,
+      );
+      if (replayed) {
+        await logAuditEvent({
+          traceId,
+          actorType: "agent",
+          actorId: auth.agentId || "buyer_agent",
+          eventType: "checkout_quote_replayed",
+          cartMandateId: replayed.cart.id,
+          intentMandateId: replayed.cart.intent_mandate_id,
+          explanation:
+            "Returned the existing quote for a repeated Idempotency-Key instead of creating a second cart, reservation and provider order.",
+          metadata: {
+            idempotencyKey,
+            cartStatus: replayed.cart.status,
+            totalMinor: replayed.cart.total_minor,
+          },
+        });
+
+        return NextResponse.json({
+          success: true,
+          idempotentReplay: true,
+          cartMandate: replayed.cart,
+          policyEvaluation: replayed.decision ?? null,
+          paymentAction: replayed.paymentAction,
+          negotiation: null,
+          message:
+            "This Idempotency-Key was already used; the original quote is returned unchanged. No second cart, reservation or order was created.",
+        });
+      }
+    }
 
     // Resolve an agent-to-agent negotiation session (if the buyer negotiated terms)
     const negotiationSession =
@@ -647,6 +713,7 @@ export async function POST(request: Request) {
                 fulfillment: cartMandateQuote.fulfillment,
                 terms: cartMandateQuote.terms,
                 content_hash: cartSnapshotHash,
+                idempotency_key: idempotencyKey || null,
                 status: "proposed",
               }),
             ),
@@ -664,6 +731,32 @@ export async function POST(request: Request) {
           ]);
           checkoutCommitted = true;
         } catch (error) {
+          // Concurrent requests with the SAME idempotency key: the unique index
+          // `uniq_cart_idempotency` rejects the loser. That is the correct and
+          // safe outcome — no second cart, reservation or order — but a raw 500
+          // would tell the agent to retry, which is precisely the wrong advice.
+          // Return the winner's quote instead.
+          if (
+            isUniqueViolation(error, "uniq_cart_idempotency") &&
+            idempotencyKey
+          ) {
+            const replayed = await findQuoteByIdempotencyKey(
+              merchantId,
+              idempotencyKey,
+            );
+            if (replayed) {
+              return NextResponse.json({
+                success: true,
+                idempotentReplay: true,
+                cartMandate: replayed.cart,
+                policyEvaluation: replayed.decision ?? null,
+                paymentAction: replayed.paymentAction,
+                negotiation: null,
+                message:
+                  "A concurrent request with this Idempotency-Key already produced a quote; returning it. No duplicate cart, reservation or order was created.",
+              });
+            }
+          }
           // Concurrent checkout race: retry. The re-run computes new usage and
           // the trigger decides — commit, or raise ROLLING_BUDGET_EXHAUSTED.
           if (isSerializationConflict(error) && attempt < 3) continue;
@@ -691,6 +784,7 @@ export async function POST(request: Request) {
             fulfillment: cartMandateQuote.fulfillment,
             terms: cartMandateQuote.terms,
             content_hash: cartSnapshotHash,
+            idempotency_key: idempotencyKey || null,
             status: "flagged",
           }),
         ),

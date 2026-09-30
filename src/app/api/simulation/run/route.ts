@@ -50,6 +50,11 @@ export async function POST(request: NextRequest) {
       agentId: customConfig?.agentId || body.agentId || "agt_apollo_buyer_v1",
       userId: customConfig?.userId || body.userId || "user_demo_shopper",
       intentMandate: body.intentMandate,
+      // The sandbox issues no agent API keys, so settlement authorizes via the
+      // operator's merchant session. This route is already session-guarded, so
+      // forwarding the cookie lets the server-side buyer agent settle exactly as
+      // the browser-side one does.
+      cookie: request.headers.get("cookie") ?? undefined,
     });
 
     const runner = new SimulationRunner(agent, baseUrl, llm);

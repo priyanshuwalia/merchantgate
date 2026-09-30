@@ -13,6 +13,24 @@ import { generateId, generateTraceId } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Release a refund claim that never reached the provider.
+ *
+ * The claim exists to stop two concurrent refunds from both paying out. If the
+ * provider call comes back without a refund object, nothing was returned, so the
+ * claim must be rolled back — otherwise the row sits at `pending` forever and
+ * every subsequent attempt is answered as a "duplicate" refund that will never
+ * complete. Only ever called on a definitive provider failure.
+ */
+async function releaseRefundClaim(refundId: string): Promise<void> {
+  try {
+    await db.delete(refundActions).where(eq(refundActions.id, refundId));
+  } catch (err) {
+    // Never mask the provider failure with a cleanup failure.
+    console.error(`Failed to release refund claim ${refundId}:`, err);
+  }
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -60,26 +78,53 @@ export async function POST(
       );
     }
 
-    // Idempotency / duplicate-refund guard: a payment action may only ever be
-    // refunded once. Refuse if a refund already exists for this payment.
-    const [existingRefund] = await db
-      .select()
-      .from(refundActions)
-      .where(eq(refundActions.payment_action_id, action.id))
-      .limit(1);
-    if (existingRefund) {
+    // ─── CLAIM THE REFUND BEFORE TOUCHING THE PROVIDER ─────────────────────    // The previous order of operations was: SELECT for an existing refund →
+    // call the provider → INSERT. Two concurrent requests both saw no refund
+    // row, both called the provider, and the UNIQUE(payment_action_id) violation
+    // only surfaced on the later INSERT — by which time real money had already
+    // been returned twice. A unique index cannot fix a race that happens
+    // *before* it, so the row is claimed first and the provider call is gated on
+    // winning that claim.
+    //
+    // `ON CONFLICT DO NOTHING` + RETURNING means the database elects one winner;
+    // the loser sees zero rows and returns the already-recorded refund without
+    // calling the provider at all.
+    const claimedRefunds = await db
+      .insert(refundActions)
+      .values({
+        payment_action_id: action.id,
+        amount_minor: action.amount_minor,
+        status: "pending",
+        reason: body.reason || "Customer requested refund via merchant console",
+        idempotency_key:
+          request.headers.get("idempotency-key") || generateId("ref"),
+      })
+      .onConflictDoNothing()
+      .returning({ id: refundActions.id });
+
+    if (claimedRefunds.length === 0) {
+      const [existingRefund] = await db
+        .select()
+        .from(refundActions)
+        .where(eq(refundActions.payment_action_id, action.id))
+        .limit(1);
+
       return NextResponse.json({
         success: true,
-        refundId: existingRefund.id,
-        razorpayRefundId: existingRefund.razorpay_refund_id,
-        amountMinor: existingRefund.amount_minor,
+        refundId: existingRefund?.id,
+        razorpayRefundId: existingRefund?.razorpay_refund_id,
+        amountMinor: existingRefund?.amount_minor ?? action.amount_minor,
         currency: action.currency,
-        status: existingRefund.status,
+        status: existingRefund?.status ?? "unknown",
         duplicate: true,
+        message:
+          "A refund for this payment was already recorded. No additional provider refund was issued.",
       });
     }
 
-    const refundId = generateId("ref");
+    // Winner: the provider call below is now gated on having won the claim.
+    const refundId = claimedRefunds[0].id;
+
     const paymentId = action.razorpay_payment_id || "";
     const orderIntentRef = action.razorpay_order_id || "";
     const isStripeAction = isStripePaymentAction(action);
@@ -104,6 +149,9 @@ export async function POST(
       const refund = await refundStripePayment({
         paymentIntentId: orderIntentRef,
         amountMinor: action.amount_minor,
+        // Stable per payment action, so a retry after a provider timeout cannot
+        // return the money twice.
+        idempotencyKey: `mg_refund_${action.id}`,
         metadata: {
           refundActionId: refundId,
           merchant: auth.merchantId,
@@ -114,6 +162,10 @@ export async function POST(
         razorpayRefundId = refund.id;
         provider = "stripe";
       } else {
+        // Release the claim. No refund object came back, so the provider created
+        // nothing and there is no money to reconcile — leaving the row `pending`
+        // would block every future retry behind a permanent duplicate response.
+        await releaseRefundClaim(refundId);
         return NextResponse.json(
           {
             error:
@@ -140,6 +192,8 @@ export async function POST(
       } else {
         // Real payment but the provider call failed (network/keys/eligibility).
         // Never fake success — surface the failure so the merchant can retry.
+        // Release the claim for the same reason as the Stripe branch above.
+        await releaseRefundClaim(refundId);
         return NextResponse.json(
           {
             error:
@@ -154,15 +208,17 @@ export async function POST(
       razorpayRefundId = `rfrp_sim_${generateId()}`;
     }
 
-    await db.insert(refundActions).values({
-      id: refundId,
-      payment_action_id: action.id,
-      amount_minor: action.amount_minor,
-      razorpay_refund_id: razorpayRefundId,
-      status: "completed",
-      idempotency_key: `idemp_refund_${action.id}`,
-      reason,
-    });
+    // The refund row was CLAIMED before the provider call, so this is now an
+    // update rather than an insert. Keeping it as an INSERT would violate the
+    // new UNIQUE(payment_action_id) constraint that the claim relies on.
+    await db
+      .update(refundActions)
+      .set({
+        razorpay_refund_id: razorpayRefundId,
+        status: "completed",
+        reason,
+      })
+      .where(eq(refundActions.id, refundId));
 
     await db
       .update(paymentActions)

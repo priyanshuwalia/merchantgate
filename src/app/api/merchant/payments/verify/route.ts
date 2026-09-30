@@ -1,6 +1,13 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
-import { cartMandates, db, paymentActions, products } from "@/db";
+import {
+  cartMandates,
+  db,
+  paymentActions,
+  products,
+  runTransaction,
+  toStatement,
+} from "@/db";
 import { logAuditEvent } from "@/lib/audit/logger";
 import { requireMerchantAuth } from "@/lib/auth/guard";
 import { verifyPaymentSignature } from "@/lib/payments/razorpay";
@@ -95,37 +102,93 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await db
+    // ─── ATOMIC SETTLEMENT CLAIM ───────────────────────────────────────────
+    // Same check-then-act replay hole as the agent-side verify route: an
+    // unconditional UPDATE, then an unguarded per-item stock decrement. A
+    // double-click (or a retried request) paid once but decremented stock twice.
+    const claimed = await db
       .update(paymentActions)
       .set({
         status: "completed",
         razorpay_payment_id: paymentId || action.razorpay_payment_id,
         updated_at: new Date(),
       })
-      .where(eq(paymentActions.id, action.id));
+      .where(
+        and(
+          eq(paymentActions.id, action.id),
+          ne(paymentActions.status, "completed"),
+        ),
+      )
+      .returning({ id: paymentActions.id });
 
-    await db
-      .update(cartMandates)
-      .set({ status: "completed" })
-      .where(eq(cartMandates.id, action.cart_mandate_id));
+    if (claimed.length === 0) {
+      await logAuditEvent({
+        traceId,
+        actorType: "merchant",
+        actorId: "merchant_admin",
+        eventType: "security_duplicate_settlement_rejected",
+        paymentActionId: action.id,
+        cartMandateId: action.cart_mandate_id,
+        explanation:
+          "Rejected replayed merchant-side payment verification: the action was already completed, so no stock or payment side effect was applied.",
+        metadata: {
+          orderId,
+          paymentId,
+          claimed: false,
+          idempotentReplay: true,
+        },
+      });
+
+      return NextResponse.json(
+        {
+          success: true,
+          idempotentReplay: true,
+          status: "completed",
+          paymentActionId: action.id,
+          cartMandateId: action.cart_mandate_id,
+          message:
+            "This payment was already settled. No additional stock or payment effect was applied.",
+        },
+        { status: 200 },
+      );
+    }
 
     const [cart] = await db
       .select()
       .from(cartMandates)
       .where(eq(cartMandates.id, action.cart_mandate_id))
       .limit(1);
-    if (cart) {
-      const items =
-        (cart.items as Array<{ variantId: string; quantity: number }>) || [];
-      for (const item of items) {
-        await db
-          .update(products)
-          .set({
-            stock_quantity: sql`GREATEST(0, stock_quantity - ${item.quantity})`,
-          })
-          .where(eq(products.variant_id, item.variantId));
-      }
-    }
+    const items =
+      (cart?.items as Array<{ variantId: string; quantity: number }>) || [];
+
+    await runTransaction([
+      toStatement(
+        db
+          .update(cartMandates)
+          .set({ status: "completed" })
+          .where(eq(cartMandates.id, action.cart_mandate_id)),
+      ),
+      ...(items.length > 0
+        ? [
+            toStatement(
+              db
+                .update(products)
+                .set({
+                  stock_quantity: sql`GREATEST(0, ${products.stock_quantity} - data.qty)`,
+                })
+                .from(
+                  sql`(VALUES ${sql.join(
+                    items.map(
+                      (i) => sql`(${i.variantId}::text, ${i.quantity}::bigint)`,
+                    ),
+                    sql.raw(", "),
+                  )}) AS data(variant_id, qty)`,
+                )
+                .where(sql`${products.variant_id} = data.variant_id`),
+            ),
+          ]
+        : []),
+    ]);
 
     await logAuditEvent({
       traceId,

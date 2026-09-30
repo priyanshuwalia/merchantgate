@@ -62,6 +62,12 @@ export interface ConfirmStripeIntentParams {
   paymentMethodId: string;
   description?: string;
   refundIdHint?: string;
+  /**
+   * Stripe idempotency key (max 255 chars). Pass a value derived from the cart
+   * mandate so a retried create+confirm resolves to the same PaymentIntent
+   * rather than charging the buyer twice.
+   */
+  idempotencyKey?: string;
   metadata?: Record<string, string>;
 }
 
@@ -82,15 +88,30 @@ export async function confirmStripePaymentIntent(
 
   if (client) {
     try {
-      const intent = await client.paymentIntents.create({
-        amount: minorToStripeAmount(amountMinor),
-        currency: currency.toLowerCase(),
-        payment_method: paymentMethodId,
-        confirm: true,
-        automatic_payment_methods: { enabled: true, allow_redirects: "never" },
-        description,
-        metadata,
-      });
+      const intent = await client.paymentIntents.create(
+        {
+          amount: minorToStripeAmount(amountMinor),
+          currency: currency.toLowerCase(),
+          payment_method: paymentMethodId,
+          confirm: true,
+          automatic_payment_methods: {
+            enabled: true,
+            allow_redirects: "never",
+          },
+          description,
+          metadata,
+        },
+        // Provider-side idempotency. This call creates AND confirms, so a client
+        // that times out and retries would otherwise be charged twice: Stripe
+        // would see two distinct create+confirm requests and take two payments.
+        // A key derived from the cart mandate makes every attempt for the same
+        // cart return the SAME PaymentIntent instead of a second charge. This is
+        // the layer that actually protects money, independent of our own
+        // duplicate-request guards.
+        params.idempotencyKey
+          ? { idempotencyKey: params.idempotencyKey }
+          : undefined,
+      );
 
       return {
         id: intent.id,
@@ -131,6 +152,12 @@ export interface StripeRefundParams {
   paymentIntentId: string;
   amountMinor: number;
   reason?: string;
+  /**
+   * Stripe idempotency key. Must be stable for a given logical refund (derive it
+   * from the payment action id) so a retry after a timeout cannot return the
+   * money twice.
+   */
+  idempotencyKey?: string;
   metadata?: Record<string, string>;
 }
 
@@ -142,7 +169,8 @@ export interface StripeRefundParams {
 export async function refundStripePayment(
   params: StripeRefundParams,
 ): Promise<{ id: string; status: string; isMock: boolean } | null> {
-  const { paymentIntentId, amountMinor, reason, metadata } = params;
+  const { paymentIntentId, amountMinor, reason, metadata, idempotencyKey } =
+    params;
   const client = getStripeClient();
   if (!client) return null;
   if (!paymentIntentId.startsWith("pi_") || paymentIntentId.includes("sim")) {
@@ -150,15 +178,18 @@ export async function refundStripePayment(
   }
 
   try {
-    const refund = await client.refunds.create({
-      payment_intent: paymentIntentId,
-      amount: minorToStripeAmount(amountMinor),
-      reason:
-        reason === "requested_by_customer"
-          ? "requested_by_customer"
-          : "duplicate",
-      metadata,
-    });
+    const refund = await client.refunds.create(
+      {
+        payment_intent: paymentIntentId,
+        amount: minorToStripeAmount(amountMinor),
+        reason:
+          reason === "requested_by_customer"
+            ? "requested_by_customer"
+            : "duplicate",
+        metadata,
+      },
+      idempotencyKey ? { idempotencyKey } : undefined,
+    );
 
     return {
       id: refund.id,

@@ -1,7 +1,8 @@
 import { eq, or } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { db, paymentActions, refundActions } from "@/db";
-import { authenticateAgentRequest } from "@/lib/auth/agent-auth";
+import { authorizeSettlement } from "@/lib/auth/settlement-authz";
+import { getMerchantContext } from "@/lib/merchant/context";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +10,17 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = await authenticateAgentRequest(request);
+  // Payment status is settlement-adjacent, not public discovery: the lookup
+  // accepts a payment-action id, a provider order id OR a cart mandate id, and
+  // returns amounts and provider references. Under the default `demo` auth mode
+  // this was readable by anyone, so it gets the same gate as the money-moving
+  // routes rather than being left open as "just a read".
+  const context = await getMerchantContext();
+  const authz = await authorizeSettlement(
+    request,
+    context.merchant.config as Record<string, unknown> | null,
+  );
+  if (!authz.ok && authz.response) return authz.response;
 
   try {
     const { id } = await params;
@@ -54,9 +65,9 @@ export async function GET(
       refundAmountMinor: refund ? refund.amount_minor : undefined,
       traceId: `trace_${action.id}`,
       agentAuth: {
-        mode: auth.mode,
-        agentId: auth.agentId,
-        rateLimitRemaining: auth.rateLimitInfo.remaining,
+        principal: authz.principal,
+        agentId: authz.agentId,
+        merchantId: authz.merchantId,
       },
     });
   } catch (error) {

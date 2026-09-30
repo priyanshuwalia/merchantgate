@@ -29,6 +29,13 @@
       "when": 1758032400000,
       "tag": "20260916120000_merchant_signup",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1758043200000,
+      "tag": "20260930120000_settlement_idempotency",
+      "breakpoints": true
     }
   ]
 }

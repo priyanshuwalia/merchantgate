@@ -246,6 +246,11 @@ export const cartMandates = pgTable(
 
     content_hash: text("content_hash").notNull(),
 
+    // Client-supplied `Idempotency-Key`. A retry with the same key returns this
+    // exact cart instead of minting a second quote (which would consume a second
+    // budget reservation, a second provider order, and a second campaign spend).
+    idempotency_key: text("idempotency_key"),
+
     status: text("status").notNull().default("proposed"),
 
     created_at: timestamp("created_at").notNull().defaultNow(),
@@ -258,6 +263,12 @@ export const cartMandates = pgTable(
     index("idx_cart_expiry")
       .on(table.quote_expires_at)
       .where(sql`status = 'proposed'`),
+
+    // At most one cart per idempotency key. This is what makes a replayed
+    // quote request impossible to satisfy twice rather than merely unlikely.
+    uniqueIndex("uniq_cart_idempotency")
+      .on(table.idempotency_key)
+      .where(sql`idempotency_key IS NOT NULL`),
   ],
 );
 
@@ -311,6 +322,12 @@ export const budgetReservations = pgTable(
 
     status: text("status").notNull().default("reserved"),
 
+    // Which cart this hold belongs to. The reservation used to be reachable
+    // only from `payment_actions`, so nothing could express "one reservation
+    // per cart" and a replayed confirm minted phantom holds that were counted
+    // against the buyer's rolling 30-day budget forever.
+    cart_mandate_id: text("cart_mandate_id").references(() => cartMandates.id),
+
     expires_at: timestamp("expires_at").notNull(),
 
     created_at: timestamp("created_at").notNull().defaultNow(),
@@ -319,6 +336,12 @@ export const budgetReservations = pgTable(
     index("idx_budget_intent")
       .on(table.intent_mandate_id)
       .where(sql`status = 'reserved'`),
+
+    // One live hold per cart. Schema-level backstop for the phantom-reservation
+    // bug: a duplicate insert now aborts instead of silently inflating spend.
+    uniqueIndex("uniq_budget_reservation_per_cart")
+      .on(table.cart_mandate_id)
+      .where(sql`cart_mandate_id IS NOT NULL AND status = 'reserved'`),
   ],
 );
 
@@ -369,25 +392,33 @@ export const paymentActions = pgTable(
 
 // 9. Refund Actions
 
-export const refundActions = pgTable("refund_actions", {
-  id: text("id").primaryKey().default(sql`'ref_' || gen_random_uuid()`),
+export const refundActions = pgTable(
+  "refund_actions",
+  {
+    id: text("id").primaryKey().default(sql`'ref_' || gen_random_uuid()`),
 
-  payment_action_id: text("payment_action_id")
-    .notNull()
-    .references(() => paymentActions.id),
+    payment_action_id: text("payment_action_id")
+      .notNull()
+      .unique()
+      .references(() => paymentActions.id),
 
-  amount_minor: integer("amount_minor").notNull(),
+    amount_minor: integer("amount_minor").notNull(),
 
-  razorpay_refund_id: text("razorpay_refund_id").unique(),
+    razorpay_refund_id: text("razorpay_refund_id").unique(),
 
-  status: text("status").notNull().default("pending"),
+    status: text("status").notNull().default("pending"),
 
-  idempotency_key: text("idempotency_key").notNull().unique(),
+    idempotency_key: text("idempotency_key").notNull().unique(),
 
-  reason: text("reason"),
+    reason: text("reason"),
 
-  created_at: timestamp("created_at").notNull().defaultNow(),
-});
+    created_at: timestamp("created_at").notNull().defaultNow(),
+  },
+  // `payment_action_id` is UNIQUE: "one refund per payment" is a schema
+  // invariant, not a check-then-act race in the handler. Previously two
+  // concurrent refund requests both passed the existence check and both called
+  // the provider, so real money was returned twice.
+);
 
 // 10. Webhook Events (Deduplication)
 
