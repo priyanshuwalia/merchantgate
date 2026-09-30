@@ -45,6 +45,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Settlement authorization. This route had NO authentication at all — it
+    // sat under the public `/v1/agent` prefix with no credential check, so any
+    // caller who could guess or harvest a `razorpay_order_id` could drive the
+    // completion path. Reading a public order id must not be authority to mark
+    // it paid.
+    //
+    // This MUST run before the action lookup: an unauthenticated caller probing
+    // for order ids must get 401, not a 404 that confirms the id does not exist.
+    const context = await getMerchantContext();
+    const authz = await authorizeSettlement(
+      request,
+      context.merchant.config as Record<string, unknown> | null,
+    );
+    if (!authz.ok && authz.response) {
+      await logAuditEvent({
+        traceId,
+        actorType: "system",
+        actorId: "payment_verify_authz",
+        eventType: "security_settlement_unauthorized",
+        explanation:
+          "Rejected payment verification: no verified agent API key and no merchant session.",
+        metadata: {
+          claimedAgentId: authz.agentId,
+          orderId,
+          remoteIp:
+            request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+            null,
+        },
+      });
+      return authz.response;
+    }
+    const authAgentId = authz.agentId;
+
     const [action] = await db
       .select()
       .from(paymentActions)
@@ -69,38 +102,6 @@ export async function POST(request: NextRequest) {
         razorpayPaymentId: action.razorpay_payment_id || paymentId,
       });
     }
-
-    // Settlement authorization. This route had NO authentication at all — it
-    // sat under the public `/v1/agent` prefix with no credential check, so any
-    // caller who could guess or harvest a `razorpay_order_id` could drive the
-    // completion path. Reading a public order id must not be authority to mark
-    // it paid.
-    const context = await getMerchantContext();
-    const authz = await authorizeSettlement(
-      request,
-      context.merchant.config as Record<string, unknown> | null,
-    );
-    if (!authz.ok && authz.response) {
-      await logAuditEvent({
-        traceId,
-        actorType: "system",
-        actorId: "payment_verify_authz",
-        eventType: "security_settlement_unauthorized",
-        cartMandateId: action.cart_mandate_id,
-        paymentActionId: action.id,
-        explanation:
-          "Rejected payment verification: no verified agent API key and no merchant session.",
-        metadata: {
-          claimedAgentId: authz.agentId,
-          orderId,
-          remoteIp:
-            request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-            null,
-        },
-      });
-      return authz.response;
-    }
-    const authAgentId = authz.agentId;
 
     const keySecret = process.env.RAZORPAY_KEY_SECRET || "";
     const isProd = process.env.NODE_ENV === "production";
