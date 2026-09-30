@@ -68,11 +68,22 @@ export class SimulatedBuyerAgent {
     return await res.json();
   }
 
-  async searchCatalog(baseUrl: string, query = "") {
-    const url = query
-      ? `${baseUrl}/v1/agent/catalog?q=${encodeURIComponent(query)}`
-      : `${baseUrl}/v1/agent/catalog`;
-    const res = await fetch(url);
+  /**
+   * Catalogue search. `category` comes from the buyer's parsed mandate and is a
+   * HARD merchant-side filter — sending only `q` used to let an accessory in
+   * another department answer a product query.
+   */
+  async searchCatalog(
+    baseUrl: string,
+    query = "",
+    options?: { category?: string; inStock?: boolean },
+  ) {
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    if (options?.category) params.set("category", options.category);
+    if (options?.inStock) params.set("inStock", "true");
+    const qs = params.toString();
+    const res = await fetch(`${baseUrl}/v1/agent/catalog${qs ? `?${qs}` : ""}`);
     return await res.json();
   }
 

@@ -105,14 +105,79 @@ export function hydrateNegotiationSessions(
   }
 }
 
+/**
+ * Resolve the negotiation session a checkout is allowed to quote against.
+ *
+ * ONLY an `agreed` session qualifies. An `active` session is just a standing
+ * offer: treating it as agreed let a buyer open a negotiation and skip the
+ * acceptance round entirely while still collecting the merchant's concession.
+ */
 export function getAgreedNegotiationForCheckout(
   sessionId: string | undefined | null,
 ): NegotiationSession | null {
   if (!sessionId) return null;
   const session = getNegotiationSession(sessionId);
   if (!session) return null;
-  if (session.status !== "agreed" && session.status !== "active") return null;
+  if (session.status !== "agreed") return null;
   return session;
+}
+
+export type NegotiationCartBinding =
+  | { ok: true }
+  | { ok: false; code: "NEGOTIATION_CART_MISMATCH"; detail: string };
+
+/**
+ * Bind an agreed negotiation to the cart that will actually be quoted.
+ *
+ * A negotiated rate is a promise about a specific basket. Without this check a
+ * buyer could negotiate one cheap line and then check out a different (or much
+ * larger) basket under the same concession, so the cart must match the
+ * negotiated lines in BOTH directions — no extra lines, no missing lines, and
+ * no quantity drift.
+ */
+export function bindCartToNegotiation(
+  session: Pick<NegotiationSession, "items">,
+  cartItems: Array<{ variantId: string; quantity?: number | string }>,
+): NegotiationCartBinding {
+  const negotiated = new Map(
+    session.items.map((i) => [i.variantId, i.quantity]),
+  );
+
+  for (const line of cartItems) {
+    const agreedQuantity = negotiated.get(line.variantId);
+    if (agreedQuantity === undefined) {
+      return {
+        ok: false,
+        code: "NEGOTIATION_CART_MISMATCH",
+        detail: `Cart line '${line.variantId}' was not part of the negotiated session.`,
+      };
+    }
+    const requestedQuantity = Math.max(
+      1,
+      Math.floor(Number(line.quantity ?? 1)) || 1,
+    );
+    if (requestedQuantity !== agreedQuantity) {
+      return {
+        ok: false,
+        code: "NEGOTIATION_CART_MISMATCH",
+        detail: `Cart requests ${requestedQuantity} x '${line.variantId}' but ${agreedQuantity} were negotiated.`,
+      };
+    }
+  }
+
+  const cartVariantIds = new Set(cartItems.map((l) => l.variantId));
+  const missing = [...negotiated.keys()].filter(
+    (id) => !cartVariantIds.has(id),
+  );
+  if (missing.length > 0) {
+    return {
+      ok: false,
+      code: "NEGOTIATION_CART_MISMATCH",
+      detail: `Negotiated line(s) missing from the cart: ${missing.join(", ")}.`,
+    };
+  }
+
+  return { ok: true };
 }
 
 export function appendTurn(
@@ -169,6 +234,47 @@ function evaluateEligibility(
 
 function money(minor: number): string {
   return `₹${(minor / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+}
+
+export type VoiceTerms = {
+  /** The discount the deterministic engine actually decided (bps). */
+  discountBps: number;
+  /** Every rupee figure the merchant is permitted to state. */
+  allowedAmountsMinor: number[];
+};
+
+/**
+ * Guard the LLM's *voice* against contradicting the deterministic *terms*.
+ *
+ * The merchant agent is allowed to phrase the reply, never to restate it
+ * differently: a model that announces "20% off" for an engine-decided 8% has
+ * turned a bounded concession into an unbounded promise. Returns true when the
+ * message states a figure that is not one the engine decided — the caller then
+ * keeps the deterministic message.
+ */
+export function voiceContradictsTerms(
+  message: string,
+  terms: VoiceTerms,
+): boolean {
+  const text = String(message || "");
+  if (!text.trim()) return true;
+
+  const decidedPercent = Number((terms.discountBps / 100).toFixed(1));
+  for (const match of text.matchAll(/(\d+(?:\.\d+)?)\s*%/g)) {
+    const stated = Number(match[1]);
+    if (stated !== decidedPercent && stated !== 0) return true;
+  }
+
+  const allowed = new Set(
+    terms.allowedAmountsMinor.map((minor) => Number((minor / 100).toFixed(2))),
+  );
+  for (const match of text.matchAll(/₹\s*([\d,]+(?:\.\d+)?)/g)) {
+    const stated = Number(match[1].replace(/,/g, ""));
+    if (!Number.isFinite(stated)) return true;
+    if (!allowed.has(Number(stated.toFixed(2)))) return true;
+  }
+
+  return false;
 }
 
 /**
@@ -303,11 +409,12 @@ export function respondToCounter(
 
   session.round += 1;
 
-  // Buyer accepts the standing offer
-  if (
-    acceptCurrentOffer ||
-    requestedDiscountBps <= session.currentDiscountBps
-  ) {
+  // Buyer accepts the standing offer.
+  //
+  // Acceptance must be EXPLICIT. Countering at or below the standing offer is
+  // handled above as a hold — it is never read as silent consent, so a buyer
+  // cannot lock in the merchant's concession without accepting it.
+  if (acceptCurrentOffer) {
     const agreed = session.currentDiscountBps;
     session.status = "agreed";
     session.requiresMerchantApproval =
@@ -334,6 +441,33 @@ export function respondToCounter(
       message: evaluation.merchantMessage,
       offeredDiscountBps: agreed,
       outcome: "AGREED",
+    });
+
+    return { session, evaluation };
+  }
+
+  // A counter that does not beat the standing offer is a weaker position, not
+  // consent. The merchant HOLDS and re-states its offer — the concession is
+  // only ever unlocked by an explicit `acceptCurrentOffer`.
+  if (
+    !acceptCurrentOffer &&
+    requestedDiscountBps <= session.currentDiscountBps
+  ) {
+    const held = session.currentDiscountBps;
+    const evaluation: NegotiationEvaluation = {
+      outcome: "COUNTER_OFFER",
+      discountBps: held,
+      merchantMessage: `${rules.agentName}: My ${(held / 100).toFixed(1)}% already beats that — there is nothing further to concede in your favour. Take the standing offer, or proceed at list price.`,
+      buyerGuidance: `Standing offer is ${(held / 100).toFixed(1)}%. Accept it explicitly, or walk away.`,
+      requiresMerchantApproval: session.requiresMerchantApproval,
+      reasonCodes: ["COUNTER_NOT_ABOVE_STANDING_OFFER"],
+    };
+
+    appendTurn(session, {
+      actor: "merchant_agent",
+      message: evaluation.merchantMessage,
+      offeredDiscountBps: held,
+      outcome: "COUNTER_OFFER",
     });
 
     return { session, evaluation };

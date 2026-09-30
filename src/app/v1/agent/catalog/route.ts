@@ -1,5 +1,6 @@
 import { and, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
+import { rankCatalogMatches } from "@/core/catalog-match";
 import { db, products } from "@/db";
 import { logAuditEvent } from "@/lib/audit/logger";
 import {
@@ -9,6 +10,13 @@ import {
 import { generateTraceId } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Relevance ranking is computed in JS (see `src/core/catalog-match.ts`) so a
+ * text query has to be scored over a bounded window before pagination. 200 rows
+ * is far more than any single merchant catalogue in this protocol.
+ */
+const RELEVANCE_SCAN_WINDOW = 200;
 
 export async function GET(request: NextRequest) {
   const traceId = generateTraceId();
@@ -31,6 +39,10 @@ export async function GET(request: NextRequest) {
     const inStock = searchParams.get("inStock") === "true";
     const limit = Math.min(Number(searchParams.get("limit") || 20), 100);
     const offset = Number(searchParams.get("cursor") || 0);
+    // Off by default: a text query only ever returns SKUs that actually match
+    // the request. Complements ("headphone" → "Headphone Stand") and
+    // description-only hits are excluded unless a buyer asks for them.
+    const includeNonMatches = searchParams.get("includeNonMatches") === "true";
 
     const conditions = [];
 
@@ -59,21 +71,50 @@ export async function GET(request: NextRequest) {
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-    const items = await db
+    // With a text query the scan window is widened so relevance has something to
+    // rank before the page slice; the cursor then pages inside that window.
+    const scanLimit = q
+      ? Math.min(Math.max(limit, 20) * 5, RELEVANCE_SCAN_WINDOW)
+      : limit;
+    const scanOffset = q ? 0 : offset;
+
+    const rows = await db
       .select()
       .from(products)
       .where(whereClause)
-      .limit(limit)
-      .offset(offset);
+      .limit(scanLimit)
+      .offset(scanOffset);
 
     const totalCount = await db
       .select({ count: sql<number>`count(*)` })
       .from(products)
       .where(whereClause);
 
-    const total = Number(totalCount[0]?.count || items.length);
+    const ranked = rankCatalogMatches(
+      rows.map((p) => ({
+        row: p,
+        variantId: p.variant_id,
+        title: p.title,
+        category: p.category,
+        description: p.description,
+        basePriceMinor: p.base_price_minor,
+        inStock: p.stock_quantity > 0,
+      })),
+      q || "",
+      { category: null },
+    ).map((m) => ({ match: m, row: m.item.row }));
 
-    const formattedItems = items.map((p) => {
+    const matching =
+      q && !includeNonMatches
+        ? ranked.filter((r) => r.match.selectable)
+        : ranked;
+    const ordered = q ? matching.slice(offset, offset + limit) : matching;
+
+    const total = q
+      ? matching.length
+      : Number(totalCount[0]?.count || ordered.length);
+
+    const formattedItems = ordered.map(({ row: p, match }) => {
       let availabilityStatus: "in_stock" | "limited" | "out_of_stock" =
         "in_stock";
       if (p.stock_quantity <= 0) {
@@ -110,11 +151,25 @@ export async function GET(request: NextRequest) {
         images: ["/product-placeholder.png"],
         version: String(p.version || "1.0.0"),
         updatedAt: p.updated_at.toISOString(),
+        // Relevance verdict, so a buyer agent can see WHY a SKU is (or is not)
+        // a legitimate answer to its query. `selectable: false` means "do not
+        // buy this for the request" — it is a complement, not the product.
+        match: q
+          ? {
+              verdict: match.verdict,
+              score: match.score,
+              selectable: match.selectable,
+              reason: match.reason,
+            }
+          : undefined,
       };
     });
 
+    const available = q ? matching.length : total;
     const nextCursor =
-      offset + items.length < total ? String(offset + items.length) : undefined;
+      offset + ordered.length < available
+        ? String(offset + ordered.length)
+        : undefined;
 
     // Funnel telemetry: catalog view event (excluded from overview audit feed)
     await logAuditEvent({
@@ -122,8 +177,8 @@ export async function GET(request: NextRequest) {
       actorType: "agent",
       actorId: searchParams.get("agentId") || "external_buyer_agent",
       eventType: "catalog_view",
-      explanation: `Catalog viewed (q='${q || ""}', ${items.length} results).`,
-      metadata: { query: q || "", resultCount: items.length },
+      explanation: `Catalog viewed (q='${q || ""}', ${formattedItems.length} results).`,
+      metadata: { query: q || "", resultCount: formattedItems.length },
     });
 
     return NextResponse.json({

@@ -3,9 +3,12 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { getMerchantAgentRules } from "@/lib/merchant/agent";
 import {
+  bindCartToNegotiation,
+  getAgreedNegotiationForCheckout,
   getNegotiationSession,
   openNegotiation,
   respondToCounter,
+  voiceContradictsTerms,
 } from "@/lib/merchant/negotiation";
 
 const rules = getMerchantAgentRules();
@@ -175,5 +178,189 @@ describe("negotiation engine", () => {
     assert.ok(found);
     assert.equal(found.id, session.id);
     assert.equal(getNegotiationSession("neg_missing"), null);
+  });
+});
+
+describe("negotiation → checkout binding", () => {
+  test("an open counter-offer is NOT quotable at checkout", () => {
+    const { session } = openNegotiation(
+      [bulkKeyboard],
+      "agt_apollo_buyer_v1",
+      undefined,
+      rules,
+    );
+    assert.equal(session.status, "active");
+    // The un-accepted concession must not reach a cart.
+    assert.equal(getAgreedNegotiationForCheckout(session.id), null);
+  });
+
+  test("an accepted session is quotable", () => {
+    const { session } = openNegotiation(
+      [bulkKeyboard],
+      "agt_apollo_buyer_v1",
+      undefined,
+      rules,
+    );
+    const agreed = expectOk(
+      respondToCounter(session.id, 0, true, "Deal.", rules),
+    );
+    const resolved = getAgreedNegotiationForCheckout(agreed.session.id);
+    assert.ok(resolved);
+    assert.equal(resolved.status, "agreed");
+  });
+
+  test("a rejected session is not quotable", () => {
+    const { session } = openNegotiation(
+      [bulkKeyboard],
+      "agt_apollo_buyer_v1",
+      undefined,
+      rules,
+    );
+    const rejected = respondToCounter(
+      session.id,
+      rules.maxDiscountBps + 5000,
+      false,
+      "Too much.",
+      rules,
+    );
+    assert.ok("session" in rejected);
+    assert.equal(getAgreedNegotiationForCheckout(rejected.session.id), null);
+  });
+
+  test("only an explicit acceptance locks terms (no silent consent)", () => {
+    const { session } = openNegotiation(
+      [bulkKeyboard],
+      "agt_apollo_buyer_v1",
+      undefined,
+      rules,
+    );
+    // Countering at or below the standing offer HOLDS the offer; it is not
+    // read as acceptance.
+    const held = expectOk(
+      respondToCounter(session.id, 1, false, "Take it or leave it.", rules),
+    );
+    assert.equal(held.evaluation.outcome, "COUNTER_OFFER");
+    assert.ok(
+      held.evaluation.reasonCodes.includes("COUNTER_NOT_ABOVE_STANDING_OFFER"),
+    );
+    assert.equal(held.session.status, "active");
+    assert.equal(getAgreedNegotiationForCheckout(session.id), null);
+
+    // Only an explicit accept unlocks the concession.
+    const agreed = expectOk(
+      respondToCounter(session.id, 0, true, "Accepted.", rules),
+    );
+    assert.equal(agreed.evaluation.outcome, "AGREED");
+    assert.ok(getAgreedNegotiationForCheckout(agreed.session.id));
+  });
+});
+
+describe("bindCartToNegotiation", () => {
+  const negotiatedCart = () => {
+    const { session } = openNegotiation(
+      [bulkKeyboard],
+      "agt_apollo_buyer_v1",
+      undefined,
+      rules,
+    );
+    return expectOk(respondToCounter(session.id, 0, true, "Deal.", rules))
+      .session;
+  };
+
+  test("accepts the exact negotiated basket", () => {
+    const session = negotiatedCart();
+    assert.deepEqual(
+      bindCartToNegotiation(session, [
+        { variantId: "kbd_nimbus_75_black_brown", quantity: 5 },
+      ]),
+      { ok: true },
+    );
+  });
+
+  test("rejects swapping in a different product under the negotiated rate", () => {
+    const session = negotiatedCart();
+    const binding = bindCartToNegotiation(session, [
+      { variantId: "acc_nimbus_stand_alu", quantity: 5 },
+    ]);
+    assert.equal(binding.ok, false);
+    if (!binding.ok) assert.equal(binding.code, "NEGOTIATION_CART_MISMATCH");
+  });
+
+  test("rejects quantity drift under the negotiated rate", () => {
+    const session = negotiatedCart();
+    const binding = bindCartToNegotiation(session, [
+      { variantId: "kbd_nimbus_75_black_brown", quantity: 50 },
+    ]);
+    assert.equal(binding.ok, false);
+  });
+
+  test("rejects dropping a negotiated line", () => {
+    const session = openNegotiation(
+      [
+        bulkKeyboard,
+        {
+          ...bulkKeyboard,
+          variantId: "mse_nimbus_pro_white",
+          title: "Nimbus Pro Mouse",
+          quantity: 3,
+        },
+      ],
+      "agt_apollo_buyer_v1",
+      undefined,
+      rules,
+    ).session;
+    const agreed = expectOk(
+      respondToCounter(session.id, 0, true, "Deal.", rules),
+    ).session;
+    const binding = bindCartToNegotiation(agreed, [
+      { variantId: "kbd_nimbus_75_black_brown", quantity: 5 },
+    ]);
+    assert.equal(binding.ok, false);
+    if (!binding.ok) assert.match(binding.detail, /missing from the cart/);
+  });
+});
+
+describe("voiceContradictsTerms", () => {
+  const terms = {
+    discountBps: 800,
+    allowedAmountsMinor: [349900, 321908, 139960],
+  };
+
+  test("accepts a message that restates the decided terms", () => {
+    assert.equal(
+      voiceContradictsTerms(
+        "Deal — 8.0% off, ₹3,499.00 per unit instead of ₹3,499.00 list.",
+        terms,
+      ),
+      false,
+    );
+  });
+
+  test("rejects an inflated discount", () => {
+    assert.equal(
+      voiceContradictsTerms("I can do 25% off for you today.", terms),
+      true,
+    );
+  });
+
+  test("rejects an invented price", () => {
+    assert.equal(
+      voiceContradictsTerms("8.0% off, so ₹2,999.00 per unit.", terms),
+      true,
+    );
+  });
+
+  test("rejects an empty voice", () => {
+    assert.equal(voiceContradictsTerms("   ", terms), true);
+  });
+
+  test("tolerates prose without any figures", () => {
+    assert.equal(
+      voiceContradictsTerms(
+        "That works for my mandate — let's proceed.",
+        terms,
+      ),
+      false,
+    );
   });
 });

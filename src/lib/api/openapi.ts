@@ -180,6 +180,13 @@ export function openApiDocument() {
             { name: "maxPrice", in: "query", schema: { type: "integer" } },
             { name: "limit", in: "query", schema: { type: "integer" } },
             { name: "cursor", in: "query", schema: { type: "string" } },
+            {
+              name: "includeNonMatches",
+              in: "query",
+              schema: { type: "boolean", default: false },
+              description:
+                "Return text-search hits that are not selectable (accessory / weak / unrelated verdicts) instead of withholding them. Off by default so a buyer agent cannot mistake an accessory for the requested product.",
+            },
           ],
           responses: { 200: catalogResponse },
         },

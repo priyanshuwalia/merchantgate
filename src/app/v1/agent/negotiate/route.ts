@@ -15,6 +15,7 @@ import {
   type NegotiationItem,
   openNegotiation,
   respondToCounter,
+  voiceContradictsTerms,
 } from "@/lib/merchant/negotiation";
 import {
   hydrateRuntimeState,
@@ -156,7 +157,9 @@ export async function POST(request: Request) {
 
       result = openNegotiation(
         items,
-        String(body.agentId || "agt_buyer_unknown"),
+        // The session belongs to the AUTHENTICATED agent. `body.agentId` is
+        // buyer-controlled and must never decide who a session is bound to.
+        auth.agentId || String(body.agentId || "agt_buyer_unknown"),
         body.buyerMessage,
         rules,
       );
@@ -186,6 +189,32 @@ export async function POST(request: Request) {
         return NextResponse.json(
           { success: false, error: "NEGOTIATION_SESSION_NOT_FOUND_OR_EXPIRED" },
           { status: 404 },
+        );
+      }
+
+      // Session ownership: a negotiation is a private channel between one
+      // buyer agent and the merchant. Guessing a session id is not consent.
+      if (sessionBefore.agentId !== auth.agentId) {
+        await logAuditEvent({
+          traceId,
+          actorType: "agent",
+          actorId: auth.agentId,
+          eventType: "negotiation_access_denied",
+          explanation: `SECURITY: agent '${auth.agentId}' attempted to act on negotiation session ${sessionBefore.id} owned by '${sessionBefore.agentId}'.`,
+          metadata: {
+            sessionId: sessionBefore.id,
+            sessionOwner: sessionBefore.agentId,
+            requestingAgent: auth.agentId,
+            reasonCode: "NEGOTIATION_SESSION_OWNERSHIP_MISMATCH",
+          },
+        });
+        return NextResponse.json(
+          {
+            success: false,
+            error: "NEGOTIATION_SESSION_OWNERSHIP_MISMATCH",
+            reasonCodes: ["NEGOTIATION_SESSION_OWNERSHIP_MISMATCH"],
+          },
+          { status: 403 },
         );
       }
 
@@ -277,11 +306,39 @@ export async function POST(request: Request) {
       ]);
 
       if (voiceOut && voiceOut.trim().length > 0) {
-        finalMerchantMessage = `${rules.agentName}: ${stripFences(voiceOut)}`;
-        // Keep stored transcript consistent with what was actually said
-        if (session.transcript.length > 0) {
-          session.transcript[session.transcript.length - 1].message =
-            finalMerchantMessage;
+        const voiced = stripFences(voiceOut);
+        // The model may only choose the WORDS. If it restates a figure the
+        // deterministic engine did not decide, the deterministic message wins.
+        if (
+          !voiceContradictsTerms(voiced, {
+            discountBps: evaluation.discountBps,
+            allowedAmountsMinor: [
+              voicePrimaryItem.unitAmountMinor,
+              discountedUnitMinor,
+              (voicePrimaryItem.unitAmountMinor - discountedUnitMinor) *
+                voicePrimaryItem.quantity,
+            ],
+          })
+        ) {
+          finalMerchantMessage = `${rules.agentName}: ${voiced}`;
+          // Keep stored transcript consistent with what was actually said
+          if (session.transcript.length > 0) {
+            session.transcript[session.transcript.length - 1].message =
+              finalMerchantMessage;
+          }
+        } else {
+          await logAuditEvent({
+            traceId,
+            actorType: "system",
+            actorId: "negotiator_voice_guard",
+            eventType: "negotiation_voice_rejected",
+            explanation: `LLM-voice message for session ${session.id} restated terms that differ from the engine decision (${evaluation.discountBps} bps). Deterministic message retained.`,
+            metadata: {
+              sessionId: session.id,
+              decidedDiscountBps: evaluation.discountBps,
+              rejectedMessage: voiced,
+            },
+          });
         }
       }
       if (guidanceOut && guidanceOut.trim().length > 0) {

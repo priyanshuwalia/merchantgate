@@ -1,3 +1,4 @@
+import { rankCatalogMatches } from "@/core/catalog-match";
 import { generateExchange, isPersonaDisabled } from "@/lib/ai/persona";
 import type { AiConfigInput } from "@/lib/ai/provider";
 import { generateTraceId } from "@/lib/utils";
@@ -9,10 +10,18 @@ interface CatalogItem {
   productId: string;
   variantId: string;
   title: string;
+  description?: string;
   category: string;
   rating?: { average: number; count: number };
   discoveryPrice?: { amountMinor: number };
   availability?: { status: string };
+  /** Relevance verdict from the merchant's own matcher (see core/catalog-match). */
+  match?: {
+    verdict: string;
+    score: number;
+    selectable: boolean;
+    reason: string;
+  };
 }
 
 interface ProductDetail {
@@ -336,8 +345,12 @@ export class SimulationRunner {
           responsePayload = res;
           summary = `Catalog search '${query}' returned ${res.items?.length || 0} matching items.`;
         } else if (step.type === "select") {
-          const variantId =
-            (step.payload?.variantId as string) || "kbd_nimbus_75_black_brown";
+          const variantId = (step.payload?.variantId as string) || "";
+          if (!variantId) {
+            throw new Error(
+              "SELECT_STEP_REQUIRES_VARIANT: refusing to inspect a fallback SKU the scenario never named",
+            );
+          }
           const res = await this.agent.getProduct(this.baseUrl, variantId);
           responsePayload = res;
           summary = `Retrieved product '${res.title}' - Base price: ₹${((res.pricing?.amountMinor || 0) / 100).toFixed(2)} (${res.availability?.status})`;
@@ -374,15 +387,12 @@ export class SimulationRunner {
           };
           stepStatus = "warning";
         } else if (step.type === "checkout") {
-          const items = (step.payload?.items as
-            | CheckoutItemInput[]
-            | undefined) ?? [
-            {
-              variantId: "kbd_nimbus_75_black_brown",
-              quantity: 1,
-              discoveryPriceMinor: 349900,
-            },
-          ];
+          const items = step.payload?.items as CheckoutItemInput[] | undefined;
+          if (!items || items.length === 0) {
+            throw new Error(
+              "CHECKOUT_STEP_REQUIRES_ITEMS: refusing to check out a fallback SKU the scenario never named",
+            );
+          }
           const res = await this.agent.checkout(
             this.baseUrl,
             items,
@@ -641,6 +651,7 @@ export class SimulationRunner {
         const catalogRes = await this.agent.searchCatalog(
           this.baseUrl,
           searchQuery,
+          { category: config.category || undefined },
         );
         catalogItems = catalogRes.items || [];
         responsePayload = {
@@ -649,16 +660,27 @@ export class SimulationRunner {
           items: catalogItems,
         };
 
-        if (catalogItems.length === 0 && searchQuery) {
-          const fallbackRes = await this.agent.searchCatalog(this.baseUrl, "");
-          if (fallbackRes.items && fallbackRes.items.length > 0) {
-            catalogItems = fallbackRes.items;
-            summary = `Search for '${searchQuery}' yielded 0 direct SKUs. Retrieved ${catalogItems.length} store catalogue items as alternatives.`;
-          } else {
-            summary = `Catalog search for '${searchQuery}' returned 0 items in merchant store.`;
-          }
+        // NO full-catalogue fallback. "Search found nothing, here is the whole
+        // store instead" is exactly how an unrelated SKU ends up in a cart.
+        // An empty result set is a legitimate answer and the run must fail
+        // closed on it.
+        if (catalogItems.length === 0) {
+          stepStatus = "error";
+          summary = searchQuery
+            ? `No catalogue SKU matches '${searchQuery}'${config.category ? ` in category '${config.category}'` : ""}. Refusing to substitute an unrelated product.`
+            : "Catalog search returned 0 items in merchant store.";
         } else {
-          summary = `Catalog query '${searchQuery}' returned ${catalogItems.length} matching product variants.`;
+          const rejected = catalogItems.filter(
+            (i) => i.match && i.match.selectable === false,
+          );
+          summary =
+            `Catalog query '${searchQuery}' returned ${catalogItems.length} matching product variant(s)` +
+            (rejected.length > 0
+              ? `; ${rejected.length} complement/unrelated SKU(s) withheld (e.g. ${rejected
+                  .slice(0, 2)
+                  .map((r) => `'${r.title}'`)
+                  .join(", ")}).`
+              : ".");
         }
       } catch (err) {
         stepStatus = "error";
@@ -712,6 +734,9 @@ export class SimulationRunner {
         variantId: string;
         title: string;
         category: string;
+        matchVerdict: string;
+        matchScore: number;
+        matchReason: string;
         rating?: { average: number; count: number };
         meetsRating: boolean;
         basePriceInr: number;
@@ -722,6 +747,24 @@ export class SimulationRunner {
         inStock: boolean;
       }> = [];
 
+      // Relevance is re-derived LOCALLY with the merchant's own matcher, not
+      // trusted from the response: a buyer agent must never settle a variant
+      // the merchant has flagged as a complement or an unrelated hit.
+      const relevance = new Map(
+        rankCatalogMatches(
+          catalogItems.map((i) => ({
+            variantId: i.variantId,
+            title: i.title,
+            category: i.category,
+            description: i.description,
+            basePriceMinor: i.discoveryPrice?.amountMinor,
+            inStock: i.availability?.status !== "out_of_stock",
+          })),
+          searchQuery,
+          { category: config.category },
+        ).map((m) => [m.item.variantId, m]),
+      );
+
       for (const item of catalogItems) {
         const basePriceMinor = item.discoveryPrice?.amountMinor || 0;
         const estimatedTaxMinor = Math.round(basePriceMinor * 0.18);
@@ -730,12 +773,16 @@ export class SimulationRunner {
           estimatedUnitLandedMinor * requestedQuantity;
         const fitsInCap = totalEstimatedLandedMinor <= maxBudgetCapMinor;
         const ratingAverage = Number(item.rating?.average || 0);
+        const match = relevance.get(item.variantId);
 
         evaluationDetails.push({
           productId: item.productId,
           variantId: item.variantId,
           title: item.title,
           category: item.category,
+          matchVerdict: match?.verdict || "unrelated",
+          matchScore: match?.score ?? 0,
+          matchReason: match?.reason || "NO_RELEVANT_MATCH",
           rating: item.rating,
           meetsRating: minRating === 0 || ratingAverage >= minRating,
           basePriceInr: basePriceMinor / 100,
@@ -747,31 +794,45 @@ export class SimulationRunner {
         });
       }
 
-      const affordableCandidates = evaluationDetails.filter(
+      // Only SKUs the matcher marked `selectable` may ever be bought. A
+      // complement ("headphone stand" for a "headphone" request) is not a
+      // cheaper option, it is the wrong product.
+      const relevantCandidates = evaluationDetails.filter(
+        (c) => relevance.get(c.variantId)?.selectable === true,
+      );
+      const affordableCandidates = relevantCandidates.filter(
         (c) => c.fitsWithinAuthorizedCap && c.inStock && c.meetsRating,
       );
 
-      let chosenCandidate = null;
+      // Relevance is the PRIMARY sort key for every strategy; the strategy only
+      // breaks ties between equally-relevant candidates, and the variant id is
+      // the final key so selection never depends on catalogue row order.
+      // One comparator, not a chain of `.sort()` calls — a chained sort makes
+      // the LAST comparator primary and silently discards relevance.
+      type EvaluationDetail = (typeof evaluationDetails)[number];
+      const rankByStrategy = (candidates: EvaluationDetail[]) =>
+        [...candidates].sort((a, b) => {
+          if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore;
+          if (strategy === "maximize_quality") {
+            const byQuality =
+              (b.rating?.average ?? 0) - (a.rating?.average ?? 0);
+            if (byQuality !== 0) return byQuality;
+          } else if (a.totalEstimatedLandedInr !== b.totalEstimatedLandedInr) {
+            // `lowest_price`, `best_match_within_budget` and the over-budget
+            // path all prefer the cheapest equally-relevant SKU.
+            return a.totalEstimatedLandedInr - b.totalEstimatedLandedInr;
+          }
+          return a.variantId.localeCompare(b.variantId);
+        });
+
+      let chosenCandidate: EvaluationDetail | null = null;
       if (affordableCandidates.length > 0) {
-        if (strategy === "lowest_price") {
-          affordableCandidates.sort(
-            (a, b) => a.totalEstimatedLandedInr - b.totalEstimatedLandedInr,
-          );
-          chosenCandidate = affordableCandidates[0];
-        } else if (strategy === "maximize_quality") {
-          affordableCandidates.sort(
-            (a, b) => b.totalEstimatedLandedInr - a.totalEstimatedLandedInr,
-          );
-          chosenCandidate = affordableCandidates[0];
-        } else {
-          chosenCandidate = affordableCandidates[0];
-        }
+        chosenCandidate = rankByStrategy(affordableCandidates)[0];
         isItemAffordable = true;
-      } else if (evaluationDetails.length > 0) {
-        evaluationDetails.sort(
-          (a, b) => a.totalEstimatedLandedInr - b.totalEstimatedLandedInr,
-        );
-        chosenCandidate = evaluationDetails[0];
+      } else if (relevantCandidates.length > 0) {
+        // Over budget, but still the RIGHT product — testing policy bounds on
+        // the requested SKU is the point of the deny/step-up scenarios.
+        chosenCandidate = rankByStrategy(relevantCandidates)[0];
         isItemAffordable = false;
       }
 
@@ -787,15 +848,17 @@ export class SimulationRunner {
             Math.round(chosenCandidate.basePriceInr * 100);
 
           if (isItemAffordable) {
-            summary = `Selected '${chosenCandidate.title}' (${chosenCandidate.variantId}) — rated ${chosenCandidate.rating?.average ?? "N/A"}/5 by ${chosenCandidate.rating?.count ?? 0} buyers — within the ₹${budgetInr.toLocaleString("en-IN")} ±${tolerancePercent}% mandate cap.`;
+            summary = `Selected '${chosenCandidate.title}' (${chosenCandidate.variantId}) — ${chosenCandidate.matchVerdict} match for '${searchQuery || "the request"}' — rated ${chosenCandidate.rating?.average ?? "N/A"}/5 by ${chosenCandidate.rating?.count ?? 0} buyers — within the ₹${budgetInr.toLocaleString("en-IN")} ±${tolerancePercent}% mandate cap.`;
           } else {
             stepStatus = "warning";
-            summary = `⚠️ No candidate SKU fit within ₹${(maxBudgetCapMinor / 100).toFixed(2)} cap. Selected closest item '${chosenCandidate.title}' to test policy bounds.`;
+            summary = `⚠️ No requested SKU fit within ₹${(maxBudgetCapMinor / 100).toFixed(2)} cap. Selected the closest match '${chosenCandidate.title}' to test policy bounds.`;
           }
 
           responsePayload = {
             selectedVariantId: chosenCandidate.variantId,
             title: chosenCandidate.title,
+            matchVerdict: chosenCandidate.matchVerdict,
+            matchScore: chosenCandidate.matchScore,
             basePriceMinor: selectedBasePriceMinor,
             withinBudgetCap: isItemAffordable,
             candidateEvaluations: evaluationDetails,
@@ -808,7 +871,9 @@ export class SimulationRunner {
         }
       } else {
         stepStatus = "error";
-        summary = "No products found in catalogue to evaluate.";
+        summary = searchQuery
+          ? `No catalogue SKU is a legitimate match for '${searchQuery}' — the ${catalogItems.length} candidate(s) returned are complements or unrelated items. Refusing to substitute a different product.`
+          : "No products found in catalogue to evaluate.";
         responsePayload = { evaluationDetails };
       }
 
@@ -1180,132 +1245,148 @@ export class SimulationRunner {
       let summary = "";
       let responsePayload: unknown = null;
 
-      const variantIdToCheckout =
-        selectedVariant?.variantId || "kbd_nimbus_75_black_brown";
-      const itemsToCheckout = [
-        {
-          variantId: variantIdToCheckout,
-          quantity: requestedQuantity,
-          discoveryPriceMinor: selectedBasePriceMinor || 349900,
-        },
-      ];
-
-      const checkoutPayload = {
-        items: itemsToCheckout,
-        verificationId: lastVerificationId,
-        negotiationSessionId,
-      };
-
-      try {
-        const checkoutRes: CheckoutResponse = await this.agent.checkout(
-          this.baseUrl,
-          itemsToCheckout,
-          lastVerificationId,
-          {
-            instruction,
-            constraints: {
-              currency: "INR",
-              maxTransactionAmountMinor: maxBudgetCapMinor,
-              maxPriceSlippageBps: Math.max(toleranceBps, 200),
-            },
-          },
-          negotiationSessionId,
-        );
-
-        responsePayload = checkoutRes;
-
-        if (checkoutRes.cartMandate) {
-          lastCartMandateId = checkoutRes.cartMandate.id;
-          lastGrandTotalMinor = checkoutRes.cartMandate.totals?.grandTotalMinor;
-          lastLineCount = checkoutRes.cartMandate.items?.length ?? 0;
-        }
-        if (checkoutRes.policyEvaluation) {
-          lastDecisionId = checkoutRes.policyEvaluation.decisionId;
-          finalDecision = checkoutRes.policyEvaluation.decision;
-          if (checkoutRes.policyEvaluation.decision === "DENY")
-            stepStatus = "error";
-          if (checkoutRes.policyEvaluation.decision === "STEP_UP")
-            stepStatus = "warning";
-          if (checkoutRes.policyEvaluation.decision === "ALLOW")
-            checkoutSuccess = true;
-        }
-
-        const appliedDiscountBps = Number(
-          checkoutRes.cartMandate?.items?.[0]?.discountBps || 0,
-        );
-        const discountLine =
-          appliedDiscountBps > 0
-            ? `Includes ${(appliedDiscountBps / 100).toFixed(1)}% negotiated discount${negotiationSessionId ? " (agent-to-agent agreement honored)" : ""}.`
-            : "No discount applied.";
-
-        const grandTotalStr = checkoutRes.cartMandate?.totals?.grandTotalMinor
-          ? formatMinor(checkoutRes.cartMandate.totals.grandTotalMinor)
-          : "N/A";
-
-        summary = `Authoritative Quote: ${checkoutRes.cartMandate?.id || "None"} — Grand Total: ${grandTotalStr}. Policy Decision: [${checkoutRes.policyEvaluation?.decision || "DENY"}]. ${discountLine}`;
-      } catch (err) {
+      // NO hardcoded fallback variant. If the relevance gate rejected every
+      // candidate there is no product to buy, and the run must stop here
+      // rather than check out a keyboard nobody asked for.
+      if (!selectedVariant?.variantId) {
         stepStatus = "error";
-        summary = `Checkout quote generation failed: ${String(err)}`;
-        responsePayload = { error: String(err) };
-        finalDecision = "ERROR";
-      }
-
-      const quoteResponse = responsePayload as
-        | CheckoutResponse
-        | { error: string };
-      const quoteCheckout = (quoteResponse as CheckoutResponse).cartMandate
-        ? (quoteResponse as CheckoutResponse)
-        : undefined;
-      const quoteCartId = quoteCheckout?.cartMandate?.id;
-      const quoteDiscountBps = Number(
-        quoteCheckout?.cartMandate?.items?.[0]?.discountBps || 0,
-      );
-      createEvent(acc, {
-        type: "checkout",
-        description:
-          "Request authoritative Cart Mandate quote (with negotiated terms)",
-        durationMs: Date.now() - stepStart,
-        requestPayload: checkoutPayload,
-        responsePayload,
-        communications: [
-          ...(await this.comms(
-            "authoritative_quote_request",
-            {
-              step: "authoritative_quote_request",
-              instruction,
-              quantity: requestedQuantity,
-              selectedTitle: selectedVariant?.title,
-              priceMinor: selectedBasePriceMinor,
-              discountBps: quoteDiscountBps || undefined,
-              cartMandateId: quoteCartId,
-              decision: finalDecision,
-              savingsMinor: negotiationSummary.savingsMinor || undefined,
-            },
-            [
-              {
-                from: "buyer_agent",
-                message: `Requesting authoritative quote for ${requestedQuantity} x ${variantIdToCheckout}${negotiationSessionId ? `, honoring negotiation ${negotiationSessionId}` : ""}.`,
-              },
-            ],
-          )),
-          ...("merchantAgentNegotiations" in quoteResponse &&
-          quoteResponse.merchantAgentNegotiations?.[0]?.merchantMessage
-            ? [
-                {
-                  from: "merchant_agent" as const,
-                  message: quoteResponse.merchantAgentNegotiations[0]
-                    .merchantMessage as string,
-                },
-              ]
-            : []),
+        summary = `No product was selected (${selectedVariant === null ? "no legitimate match for the request" : "variant detail unavailable"}). Checkout aborted — the agent will not substitute a different SKU.`;
+        createEvent(acc, {
+          type: "checkout",
+          description: "Request authoritative cart mandate quote",
+          durationMs: Date.now() - stepStart,
+          requestPayload: null,
+          responsePayload: { error: "NO_SELECTED_VARIANT" },
+          status: "error",
+          summary,
+        });
+      } else {
+        const itemsToCheckout = [
           {
-            from: "policy_gate",
-            message: `Decision ${finalDecision}. Quote snapshot hashed; expiry 15 minutes.`,
+            variantId: selectedVariant.variantId,
+            quantity: requestedQuantity,
+            discoveryPriceMinor: selectedBasePriceMinor || undefined,
           },
-        ],
-        status: stepStatus,
-        summary,
-      });
+        ];
+
+        const checkoutPayload = {
+          items: itemsToCheckout,
+          verificationId: lastVerificationId,
+          negotiationSessionId,
+        };
+
+        try {
+          const checkoutRes: CheckoutResponse = await this.agent.checkout(
+            this.baseUrl,
+            itemsToCheckout,
+            lastVerificationId,
+            {
+              instruction,
+              constraints: {
+                currency: "INR",
+                maxTransactionAmountMinor: maxBudgetCapMinor,
+                maxPriceSlippageBps: Math.max(toleranceBps, 200),
+              },
+            },
+            negotiationSessionId,
+          );
+
+          responsePayload = checkoutRes;
+
+          if (checkoutRes.cartMandate) {
+            lastCartMandateId = checkoutRes.cartMandate.id;
+            lastGrandTotalMinor =
+              checkoutRes.cartMandate.totals?.grandTotalMinor;
+            lastLineCount = checkoutRes.cartMandate.items?.length ?? 0;
+          }
+          if (checkoutRes.policyEvaluation) {
+            lastDecisionId = checkoutRes.policyEvaluation.decisionId;
+            finalDecision = checkoutRes.policyEvaluation.decision;
+            if (checkoutRes.policyEvaluation.decision === "DENY")
+              stepStatus = "error";
+            if (checkoutRes.policyEvaluation.decision === "STEP_UP")
+              stepStatus = "warning";
+            if (checkoutRes.policyEvaluation.decision === "ALLOW")
+              checkoutSuccess = true;
+          }
+
+          const appliedDiscountBps = Number(
+            checkoutRes.cartMandate?.items?.[0]?.discountBps || 0,
+          );
+          const discountLine =
+            appliedDiscountBps > 0
+              ? `Includes ${(appliedDiscountBps / 100).toFixed(1)}% negotiated discount${negotiationSessionId ? " (agent-to-agent agreement honored)" : ""}.`
+              : "No discount applied.";
+
+          const grandTotalStr = checkoutRes.cartMandate?.totals?.grandTotalMinor
+            ? formatMinor(checkoutRes.cartMandate.totals.grandTotalMinor)
+            : "N/A";
+
+          summary = `Authoritative Quote: ${checkoutRes.cartMandate?.id || "None"} — Grand Total: ${grandTotalStr}. Policy Decision: [${checkoutRes.policyEvaluation?.decision || "DENY"}]. ${discountLine}`;
+        } catch (err) {
+          stepStatus = "error";
+          summary = `Checkout quote generation failed: ${String(err)}`;
+          responsePayload = { error: String(err) };
+          finalDecision = "ERROR";
+        }
+
+        const quoteResponse = responsePayload as
+          | CheckoutResponse
+          | { error: string };
+        const quoteCheckout = (quoteResponse as CheckoutResponse).cartMandate
+          ? (quoteResponse as CheckoutResponse)
+          : undefined;
+        const quoteCartId = quoteCheckout?.cartMandate?.id;
+        const quoteDiscountBps = Number(
+          quoteCheckout?.cartMandate?.items?.[0]?.discountBps || 0,
+        );
+        createEvent(acc, {
+          type: "checkout",
+          description:
+            "Request authoritative Cart Mandate quote (with negotiated terms)",
+          durationMs: Date.now() - stepStart,
+          requestPayload: checkoutPayload,
+          responsePayload,
+          communications: [
+            ...(await this.comms(
+              "authoritative_quote_request",
+              {
+                step: "authoritative_quote_request",
+                instruction,
+                quantity: requestedQuantity,
+                selectedTitle: selectedVariant?.title,
+                priceMinor: selectedBasePriceMinor,
+                discountBps: quoteDiscountBps || undefined,
+                cartMandateId: quoteCartId,
+                decision: finalDecision,
+                savingsMinor: negotiationSummary.savingsMinor || undefined,
+              },
+              [
+                {
+                  from: "buyer_agent",
+                  message: `Requesting authoritative quote for ${requestedQuantity} x ${selectedVariant?.variantId}${negotiationSessionId ? `, honoring negotiation ${negotiationSessionId}` : ""}.`,
+                },
+              ],
+            )),
+            ...("merchantAgentNegotiations" in quoteResponse &&
+            quoteResponse.merchantAgentNegotiations?.[0]?.merchantMessage
+              ? [
+                  {
+                    from: "merchant_agent" as const,
+                    message: quoteResponse.merchantAgentNegotiations[0]
+                      .merchantMessage as string,
+                  },
+                ]
+              : []),
+            {
+              from: "policy_gate",
+              message: `Decision ${finalDecision}. Quote snapshot hashed; expiry 15 minutes.`,
+            },
+          ],
+          status: stepStatus,
+          summary,
+        });
+      }
     }
 
     // STEP: Upsell / Cross-sell — merchant agent suggests compatible add-ons
@@ -1374,7 +1455,7 @@ export class SimulationRunner {
 
       const merchantSuggestion =
         upsellOffers && upsellOffers.offers.length > 0
-          ? `Your ${selectedVariant.title || selectedVariant?.variantId || "kbd_nimbus_75_black_brown"} pairs beautifully with our accessories. I'd recommend the ${upsellOffers.offers[0].title} — adds ${upsellOffers.offers[0].items.map((i) => i.title).join(" & ")} for ₹${((upsellOffers.offers[0].addedTotalMinor || 0) / 100).toFixed(2)}${upsellOffers.offers[0].bundleDiscountMinor > 0 ? ` (saves ₹${((upsellOffers.offers[0].bundleDiscountMinor || 0) / 100).toFixed(2)} with bundle pricing)` : ""}. Want to add it?`
+          ? `Your ${selectedVariant.title || selectedVariant.variantId} pairs beautifully with our accessories. I'd recommend the ${upsellOffers.offers[0].title} — adds ${upsellOffers.offers[0].items.map((i) => i.title).join(" & ")} for ₹${((upsellOffers.offers[0].addedTotalMinor || 0) / 100).toFixed(2)}${upsellOffers.offers[0].bundleDiscountMinor > 0 ? ` (saves ₹${((upsellOffers.offers[0].bundleDiscountMinor || 0) / 100).toFixed(2)} with bundle pricing)` : ""}. Want to add it?`
           : "";
 
       createEvent(acc, {
@@ -1622,14 +1703,16 @@ export class SimulationRunner {
             ? `Custom AI Agent executed: [${finalDecision}] within budget parameters (Target ₹${budgetInr}, Max Cap ₹${(maxBudgetCapMinor / 100).toFixed(2)})${negotiationSummary.finalDiscountBps > 0 ? `, negotiated ${(negotiationSummary.finalDiscountBps / 100).toFixed(1)}% off` : ""}.`
             : `Custom AI Agent concluded with [${finalDecision}], budget cap was ₹${(maxBudgetCapMinor / 100).toFixed(2)}.`,
       pendingConfirmation:
-        upsellHasOffers && checkoutSuccess && lastCartMandateId
+        upsellHasOffers &&
+        checkoutSuccess &&
+        lastCartMandateId &&
+        selectedVariant?.variantId
           ? {
               cartMandateId: lastCartMandateId,
               decisionId: lastDecisionId,
               items: [
                 {
-                  variantId:
-                    selectedVariant?.variantId || "kbd_nimbus_75_black_brown",
+                  variantId: selectedVariant.variantId,
                   quantity: requestedQuantity,
                 },
               ],

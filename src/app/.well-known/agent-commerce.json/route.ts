@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
         agentVerification: true,
         priceFreezingMinutes: 15,
         streamingLineage: true,
+        productRelevanceGating: true,
       },
       endpoints: {
         manifest: `${baseUrl}/.well-known/agent-commerce.json`,
@@ -57,6 +58,12 @@ export async function GET(request: NextRequest) {
         negotiate: `${baseUrl}/v1/agent/negotiate`,
         checkout: `${baseUrl}/v1/agent/checkout`,
         confirm: `${baseUrl}/v1/agent/checkout/confirm`,
+      },
+      catalogMatching: {
+        description:
+          "Text search is relevance-gated: only exact/compatible title matches are returned as purchasable. A candidate that only matches as the modifier of an accessory head noun (a 'Headphone Stand' for a 'headphones' request) is reported with match.verdict 'accessory' and withheld unless includeNonMatches=true is passed.",
+        verdicts: ["exact", "compatible", "accessory", "weak", "unrelated"],
+        nonMatchesParam: "includeNonMatches",
       },
       money: {
         currencies: ["INR"],

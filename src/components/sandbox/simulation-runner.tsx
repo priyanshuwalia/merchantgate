@@ -21,6 +21,7 @@ import {
   Tag,
   X,
   XCircle,
+  Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Header } from "@/components/dashboard/Header";
@@ -218,16 +219,28 @@ export function SimulationRunner() {
     [dismissToast],
   );
 
-  // Live Razorpay test checkout (surfaced for every ALLOW payment — the order
-  // is left `payment_pending` until the human completes a real test checkout).
+  // Pending settlement for an ALLOW quote. Both rails settle the SAME frozen
+  // cart mandate: `razorpay` opens a real test checkout, `stripe` is settled
+  // autonomously server-side from a card token. The rail is a merchant setting
+  // but the buyer gets both, because a buyer agent must never be blocked from
+  // completing a purchase by which widget happens to be on screen.
   const [paymentCheckout, setPaymentCheckout] = useState<{
-    orderId: string;
-    keyId: string;
+    cartMandateId: string;
+    decisionId?: string;
+    orderId?: string;
+    keyId?: string;
     amountMinor: number;
     currency: string;
     grandTotalMinor: number;
     quantity: number;
   } | null>(null);
+  const [paymentRail, setPaymentRail] = useState<"razorpay" | "stripe">(
+    "razorpay",
+  );
+  const [merchantRail, setMerchantRail] = useState<"razorpay" | "stripe">(
+    "razorpay",
+  );
+  const [stripePaymentToken, setStripePaymentToken] = useState("pm_card_visa");
   const [isPaying, setIsPaying] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
@@ -253,11 +266,18 @@ export function SimulationRunner() {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Load the merchant's saved model status for the header badge
+  // Load the merchant's saved model status for the header badge, and the
+  // configured settlement rail so the payment card opens on the right default.
   useEffect(() => {
     fetch("/api/merchant/settings")
       .then((r) => r.json())
-      .then((d) => d?.ai && setMerchantAi(d.ai))
+      .then((d) => {
+        if (d?.ai) setMerchantAi(d.ai);
+        const rail =
+          d?.config?.paymentProvider === "stripe" ? "stripe" : "razorpay";
+        setMerchantRail(rail);
+        setPaymentRail(rail);
+      })
       .catch(() => {});
   }, []);
 
@@ -270,13 +290,13 @@ export function SimulationRunner() {
   }, [running]);
 
   // Real-time cross-tab: when the merchant approves a pending over-limit or
-  // step-up order from the console (any tab), surface the Razorpay test
-  // checkout right here so the payment can be completed without re-running.
+  // step-up order from the console (any tab), surface the settlement card right
+  // here so the payment can be completed without re-running.
   useEffect(() => {
     return subscribeApprovalCheckout((message) => {
-      if (!message?.razorpayOrderId) return;
       const grandTotalMinor = message.grandTotalMinor ?? message.amountMinor;
       setPaymentCheckout({
+        cartMandateId: message.cartMandateId,
         orderId: message.razorpayOrderId,
         keyId: message.razorpayKeyId || "",
         amountMinor: message.amountMinor ?? grandTotalMinor,
@@ -492,9 +512,7 @@ export function SimulationRunner() {
         pushToast({
           title:
             data.finalDecision === "ALLOW"
-              ? s.needsCheckout && s.razorpayOrderId
-                ? "Payment required — open test checkout"
-                : "Transaction settled"
+              ? "Payment required — choose a rail to settle"
               : data.finalDecision === "DENY"
                 ? "Transaction declined"
                 : "Transaction requires review",
@@ -511,14 +529,31 @@ export function SimulationRunner() {
             : undefined,
         });
 
-        // Orders are left `payment_pending` for a real Razorpay test checkout —
-        // every payment opens the checkout, so surface the order to pay.
-        if (s.needsCheckout && s.razorpayOrderId) {
+        // Surface the settlement card for every ALLOW quote. The Razorpay order
+        // is pre-created for the razorpay rail, but the Stripe rail settles
+        // with no order at all — so the card must key off the cart mandate.
+        const checkoutEvent = data.events.find((e) => e.type === "checkout");
+        const checkoutPayload = checkoutEvent?.responsePayload as
+          | {
+              cartMandate?: {
+                id?: string;
+                totals?: { grandTotalMinor?: number; currency?: string };
+              };
+              policyEvaluation?: { decisionId?: string };
+            }
+          | undefined;
+        const cartMandateId = checkoutPayload?.cartMandate?.id;
+        if (data.finalDecision === "ALLOW" && cartMandateId) {
           setPaymentCheckout({
+            cartMandateId,
+            decisionId: checkoutPayload?.policyEvaluation?.decisionId,
             orderId: s.razorpayOrderId,
             keyId: s.razorpayKeyId || "",
             amountMinor: s.amountMinor ?? s.grandTotalMinor,
-            currency: s.currency || "INR",
+            currency:
+              s.currency ||
+              checkoutPayload?.cartMandate?.totals?.currency ||
+              "INR",
             grandTotalMinor: s.grandTotalMinor,
             quantity: s.quantity,
           });
@@ -574,11 +609,62 @@ export function SimulationRunner() {
     });
   };
 
+  /**
+   * Settle a frozen cart mandate on the given rail.
+   *
+   * - `razorpay_checkout` is idempotent-ish: the server attaches a real Razorpay
+   *   order to the payment action and returns it `payment_pending`, which the
+   *   browser then completes through the Razorpay SDK.
+   * - `stripe_card` settles autonomously: the server creates AND confirms a
+   *   Stripe PaymentIntent from the agent's card token and commits the whole
+   *   order (reservation + payment action + inventory) in one transaction.
+   */
+  const confirmOnRail = async (
+    cartMandateId: string,
+    decisionId: string | undefined,
+  ) => {
+    const isStripeRail = paymentRail === "stripe";
+    const res = await fetch("/v1/agent/checkout/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cartMandateId,
+        decisionId,
+        paymentMethod: isStripeRail ? "stripe_card" : "razorpay_checkout",
+        ...(isStripeRail ? { paymentToken: stripePaymentToken.trim() } : {}),
+      }),
+    });
+    return { res, data: await res.json() };
+  };
+
   const handleRazorpayCheckout = async () => {
     if (!paymentCheckout || isPaying) return;
     setPaymentError(null);
     setIsPaying(true);
     try {
+      let orderId = paymentCheckout.orderId;
+      let keyId = paymentCheckout.keyId;
+
+      // A quote produced on the Stripe rail carries no Razorpay order, so ask
+      // the server to prepare one before opening the SDK.
+      if (!orderId) {
+        const { res, data } = await confirmOnRail(
+          paymentCheckout.cartMandateId,
+          paymentCheckout.decisionId,
+        );
+        if (!res.ok || !data.success || !data.razorpayOrderId) {
+          setPaymentError(
+            data?.error ||
+              data?.message ||
+              "Could not prepare a Razorpay order for this quote.",
+          );
+          return;
+        }
+        orderId = data.razorpayOrderId as string;
+        keyId = data.razorpayKeyId || keyId;
+        setPaymentCheckout((p) => (p ? { ...p, orderId, keyId } : p));
+      }
+
       const RazorpayCtor = await loadRazorpayCheckout();
       if (!RazorpayCtor) {
         setPaymentError(
@@ -587,9 +673,8 @@ export function SimulationRunner() {
         return;
       }
 
-      const orderId = paymentCheckout.orderId;
       const options = {
-        key: paymentCheckout.keyId,
+        key: keyId,
         amount: paymentCheckout.amountMinor,
         currency: paymentCheckout.currency,
         name: "AgentPay Merchant — Test Checkout",
@@ -646,6 +731,47 @@ export function SimulationRunner() {
     }
   };
 
+  /** Settle the quote autonomously on the Stripe rail — no human checkout. */
+  const handleStripeAutonomous = async () => {
+    if (!paymentCheckout || isPaying) return;
+    setPaymentError(null);
+    if (!stripePaymentToken.trim()) {
+      setPaymentError("A card token is required for autonomous settlement.");
+      return;
+    }
+    setIsPaying(true);
+    try {
+      const { res, data } = await confirmOnRail(
+        paymentCheckout.cartMandateId,
+        paymentCheckout.decisionId,
+      );
+      if (!res.ok || !data.success) {
+        setPaymentError(
+          data?.error || data?.message || "Autonomous settlement was declined.",
+        );
+        return;
+      }
+      setPaymentCheckout(null);
+      pushToast({
+        title:
+          data.status === "completed"
+            ? "Settled autonomously on Stripe"
+            : "Stripe settlement processing",
+        decision: "ALLOW",
+        quantity: paymentCheckout.quantity,
+        grandTotalMinor: data.amountMinor ?? paymentCheckout.grandTotalMinor,
+        perUnitMinor:
+          (data.amountMinor ?? paymentCheckout.grandTotalMinor) /
+          Math.max(1, paymentCheckout.quantity),
+      });
+    } catch (e) {
+      console.error("Stripe settlement error:", e);
+      setPaymentError("Could not reach the Stripe settlement endpoint.");
+    } finally {
+      setIsPaying(false);
+    }
+  };
+
   /** Decline the upsell combo — confirm the ORIGINAL cart and open Razorpay. */
   const handleDeclineUpsell = async () => {
     const pending = result?.pendingConfirmation;
@@ -653,16 +779,10 @@ export function SimulationRunner() {
     setUpsellError(null);
     setUpsellDecision("accepting");
     try {
-      const res = await fetch("/v1/agent/checkout/confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cartMandateId: pending.cartMandateId,
-          decisionId: pending.decisionId,
-          paymentMethod: "razorpay_checkout",
-        }),
-      });
-      const data = await res.json();
+      const { res, data } = await confirmOnRail(
+        pending.cartMandateId,
+        pending.decisionId,
+      );
       if (res.ok && data.success) {
         setUpsellDecision("declined");
         const declineSettlement: SettlementInfo = {
@@ -690,15 +810,23 @@ export function SimulationRunner() {
               }
             : r,
         );
-        setPaymentCheckout({
-          orderId: data.razorpayOrderId,
-          keyId: data.razorpayKeyId || "",
-          amountMinor: data.amountMinor ?? pending.grandTotalMinor,
-          currency: data.currency || "INR",
-          grandTotalMinor: pending.grandTotalMinor,
-          quantity: pending.items[0]?.quantity || 1,
-        });
-        setPaymentError(null);
+        // Only the human-checkout rail leaves a `payment_pending` order to pay.
+        // A Stripe settlement is already `completed` by the time confirm returns.
+        if (data.status === "payment_pending") {
+          setPaymentCheckout({
+            cartMandateId: pending.cartMandateId,
+            decisionId: pending.decisionId,
+            orderId: data.razorpayOrderId,
+            keyId: data.razorpayKeyId || "",
+            amountMinor: data.amountMinor ?? pending.grandTotalMinor,
+            currency: data.currency || "INR",
+            grandTotalMinor: pending.grandTotalMinor,
+            quantity: pending.items[0]?.quantity || 1,
+          });
+          setPaymentError(null);
+        } else {
+          setPaymentCheckout(null);
+        }
       } else {
         setUpsellError(data.error || "Could not confirm the order.");
       }
@@ -774,17 +902,12 @@ export function SimulationRunner() {
         checkoutData.cartMandate.totals?.grandTotalMinor ??
         pending.grandTotalMinor;
 
-      // 2. Confirm the updated cart → creates the Razorpay order.
-      const confirmRes = await fetch("/v1/agent/checkout/confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cartMandateId: newCartMandateId,
-          decisionId: newDecisionId,
-          paymentMethod: "razorpay_checkout",
-        }),
-      });
-      const confirmData = await confirmRes.json();
+      // 2. Confirm the updated cart on the selected rail (creates the Razorpay
+      //    order, or settles autonomously on Stripe).
+      const { res: confirmRes, data: confirmData } = await confirmOnRail(
+        newCartMandateId,
+        newDecisionId,
+      );
       if (!confirmRes.ok || !confirmData.success) {
         setUpsellError(
           confirmData.error ||
@@ -820,15 +943,21 @@ export function SimulationRunner() {
             }
           : r,
       );
-      setPaymentCheckout({
-        orderId: confirmData.razorpayOrderId,
-        keyId: confirmData.razorpayKeyId || "",
-        amountMinor: confirmData.amountMinor ?? newGrandTotal,
-        currency: confirmData.currency || "INR",
-        grandTotalMinor: newGrandTotal,
-        quantity: pending.items[0]?.quantity || 1,
-      });
-      setPaymentError(null);
+      if (confirmData.status === "payment_pending") {
+        setPaymentCheckout({
+          cartMandateId: newCartMandateId,
+          decisionId: newDecisionId,
+          orderId: confirmData.razorpayOrderId,
+          keyId: confirmData.razorpayKeyId || "",
+          amountMinor: confirmData.amountMinor ?? newGrandTotal,
+          currency: confirmData.currency || "INR",
+          grandTotalMinor: newGrandTotal,
+          quantity: pending.items[0]?.quantity || 1,
+        });
+        setPaymentError(null);
+      } else {
+        setPaymentCheckout(null);
+      }
     } catch (e) {
       setUpsellError(String(e instanceof Error ? e.message : e));
     } finally {
@@ -880,17 +1009,20 @@ export function SimulationRunner() {
       const data = await res.json().catch(() => null);
       if (res.ok) {
         setIsStepUpModalOpen(false);
-        // Approval authorizes a REAL payment — surface the Razorpay test
-        // checkout for the approved order so it can be completed here.
-        if (data?.razorpayOrderId) {
-          const grandTotalMinor = data.grandTotalMinor ?? data.amountMinor ?? 0;
+        // Approval authorizes a real payment. Surface the settlement card for
+        // the approved cart mandate so it can be paid on either rail; the
+        // Razorpay order, when one was prepared, is reused.
+        if (data?.razorpayOrderId || stepUpData?.cartMandateId) {
+          const grandTotalMinor =
+            data?.grandTotalMinor ?? data?.amountMinor ?? 0;
           setPaymentCheckout({
-            orderId: data.razorpayOrderId,
-            keyId: data.razorpayKeyId || "",
-            amountMinor: data.amountMinor ?? grandTotalMinor,
-            currency: data.currency || "INR",
+            cartMandateId: stepUpData.cartMandateId,
+            orderId: data?.razorpayOrderId,
+            keyId: data?.razorpayKeyId || "",
+            amountMinor: data?.amountMinor ?? grandTotalMinor,
+            currency: data?.currency || "INR",
             grandTotalMinor,
-            quantity: data.quantity || 1,
+            quantity: data?.quantity || 1,
           });
           setPaymentError(null);
         } else {
@@ -2040,12 +2172,13 @@ export function SimulationRunner() {
         </DialogContent>
       </Dialog>
 
-      {/* Live Razorpay test checkout (payment_pending order awaiting payment) —
-          bottom-CENTER so it never collides with the top-right toast stack */}
+      {/* Live settlement card for an approved quote — bottom-CENTER so it never
+          collides with the top-right toast stack. Both rails settle the SAME
+          frozen cart mandate. */}
       {paymentCheckout && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[360px] overflow-hidden rounded-xl border border-primary/40 bg-white shadow-2xl">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[380px] overflow-hidden rounded-xl border border-primary/40 bg-white shadow-2xl">
           <div className="flex items-center justify-between bg-primary/10 px-4 py-2.5 text-xs font-semibold text-primary">
-            <span>Complete test payment required</span>
+            <span>Payment required</span>
             <button
               type="button"
               aria-label="Dismiss"
@@ -2063,11 +2196,92 @@ export function SimulationRunner() {
                 {paymentCheckout.quantity > 1 ? "s" : ""} ·{" "}
                 {formatMinorUnits(paymentCheckout.grandTotalMinor)}
               </span>
-              ) requires a real Razorpay test checkout to complete the payment.
+              ) is approved and awaiting settlement.
             </p>
-            <p className="text-[11px] text-text-muted font-mono break-all">
-              Order: {paymentCheckout.orderId}
-            </p>
+
+            {/* Rail chooser — the merchant's configured rail is preselected,
+                but the buyer agent may settle on either. */}
+            <fieldset className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+              <legend className="sr-only">Settlement rail</legend>
+              {(
+                [
+                  {
+                    id: "razorpay",
+                    label: "Razorpay",
+                    sub: "UPI · test",
+                  },
+                  {
+                    id: "stripe",
+                    label: "Stripe",
+                    sub: "autonomous",
+                  },
+                ] as const
+              ).map((opt) => {
+                const active = paymentRail === opt.id;
+                return (
+                  <label
+                    key={opt.id}
+                    className={cn(
+                      "cursor-pointer rounded-md px-2 py-1.5 text-left transition-colors",
+                      active
+                        ? "bg-white text-text-primary shadow-sm"
+                        : "text-text-muted hover:text-text-secondary",
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="settlement-rail"
+                      value={opt.id}
+                      checked={active}
+                      onChange={() => {
+                        setPaymentRail(opt.id);
+                        setPaymentError(null);
+                      }}
+                      className="sr-only"
+                    />
+                    <span className="flex items-center gap-1.5 text-xs font-semibold">
+                      {opt.label}
+                      {opt.id === merchantRail && (
+                        <span className="rounded bg-primary/10 px-1 py-px text-[9px] font-medium uppercase tracking-wide text-primary">
+                          configured
+                        </span>
+                      )}
+                    </span>
+                    <span className="block text-[10px] font-normal text-text-muted">
+                      {opt.sub}
+                    </span>
+                  </label>
+                );
+              })}
+            </fieldset>
+
+            {paymentRail === "stripe" ? (
+              <>
+                <label
+                  htmlFor="stripe-payment-token"
+                  className="block text-[11px] font-medium text-text-secondary"
+                >
+                  Card token presented by the agent
+                </label>
+                <input
+                  id="stripe-payment-token"
+                  value={stripePaymentToken}
+                  onChange={(e) => setStripePaymentToken(e.target.value)}
+                  spellCheck={false}
+                  placeholder="pm_card_visa"
+                  className="h-8 w-full rounded-md border border-input bg-white px-2 font-mono text-xs text-foreground focus:border-primary focus:outline-none"
+                />
+                <p className="text-[10px] text-text-muted">
+                  Settled server-side — no human checkout. The order, budget
+                  reservation and inventory commit atomically.
+                </p>
+              </>
+            ) : (
+              <p className="text-[11px] text-text-muted font-mono break-all">
+                Order: {paymentCheckout.orderId || "prepared on open"}
+              </p>
+            )}
+
             {paymentError && (
               <p className="text-[11px] text-red-600 bg-red-50 border border-red-200 rounded-md px-2 py-1.5">
                 {paymentError}
@@ -2076,13 +2290,27 @@ export function SimulationRunner() {
             <Button
               size="sm"
               className="w-full gap-1"
-              onClick={handleRazorpayCheckout}
+              onClick={
+                paymentRail === "stripe"
+                  ? handleStripeAutonomous
+                  : handleRazorpayCheckout
+              }
               disabled={isPaying}
             >
               {isPaying ? (
                 <>
                   <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Opening…
+                  Settling…
+                </>
+              ) : paymentRail === "stripe" ? (
+                <>
+                  <Zap className="w-3.5 h-3.5" />
+                  Settle{" "}
+                  {formatMinorUnits(paymentCheckout.amountMinor).replace(
+                    "₹",
+                    "",
+                  )}{" "}
+                  autonomously on Stripe
                 </>
               ) : (
                 <>

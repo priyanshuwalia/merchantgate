@@ -18,6 +18,8 @@ const badgeVariants = cva(
         warning:
           "border-[#ffb822]/40 bg-[#ffb822]/[0.12] text-[#946400] hover:bg-[#ffb822]/[0.2]",
         cyan: "border-primary/20 bg-accent text-primary hover:bg-accent/70",
+        stripe:
+          "border-[#635bff]/25 bg-[#635bff]/[0.08] text-[#4b45c6] hover:bg-[#635bff]/[0.14]",
       },
     },
     defaultVariants: {

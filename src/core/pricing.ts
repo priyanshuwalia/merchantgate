@@ -96,6 +96,11 @@ export type PricingContext = {
     NegotiationSession,
     "id" | "requiresMerchantApproval"
   > | null;
+  /**
+   * Injectable clock for campaign liveness. Defaults to the wall clock; tests
+   * pin it so a campaign's window can never expire mid-suite.
+   */
+  now?: Date;
 };
 
 // ----------------------------------------------------------------------------
@@ -207,7 +212,19 @@ export function priceCart(
     if (quantity === 0) continue;
 
     const baseUnitPrice = dbProduct.base_price_minor;
-    const discoveryPriceMinor = item.discoveryPriceMinor || baseUnitPrice;
+    // `discoveryPriceMinor` is the price the buyer says it saw. It is the
+    // baseline the slippage check compares against, so it can only ever be
+    // honoured DOWNWARD (a stale-cheaper view legitimately escalates); a buyer
+    // that presents a price ABOVE list would otherwise inflate the baseline and
+    // wave a re-priced (e.g. surged) line straight through the gate.
+    const discoveryPriceMinor =
+      item.discoveryPriceMinor === undefined ||
+      item.discoveryPriceMinor === null
+        ? baseUnitPrice
+        : Math.min(
+            Math.max(0, Math.floor(Number(item.discoveryPriceMinor) || 0)),
+            baseUnitPrice,
+          );
 
     // Surge re-prices UP (+15% vs discovery) to trigger slippage defence.
     // Otherwise a live campaign may discount the line off list price.
@@ -223,6 +240,7 @@ export function priceCart(
         basePriceMinor: unitAmountMinor,
         campaigns: ctx.campaigns,
         orderSubtotalMinor: preSubtotalMinor,
+        now: ctx.now,
       });
       if (match) {
         unitAmountMinor = match.discountedUnitPriceMinor;

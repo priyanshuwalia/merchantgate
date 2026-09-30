@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { LogoMark } from "@/components/branding/Logo";
 import { cn } from "@/lib/utils";
 
@@ -51,6 +52,24 @@ function SidebarContent({
 }) {
   const isActive = (href: string) =>
     href === "/dashboard" ? pathname === href : pathname.startsWith(href);
+
+  // The active settlement rail is a merchant setting, so read it rather than
+  // hardcoding a provider into the console chrome.
+  const [rail, setRail] = useState<"razorpay" | "stripe">("razorpay");
+  useEffect(() => {
+    fetch("/api/merchant/settings")
+      .then((r) => r.json())
+      .then((d) =>
+        setRail(
+          d?.config?.paymentProvider === "stripe" ? "stripe" : "razorpay",
+        ),
+      )
+      .catch(() => {});
+  }, []);
+
+  const railLabel = rail === "stripe" ? "Stripe Autonomous" : "Razorpay";
+  const railAccent = rail === "stripe" ? "bg-[#635bff]" : "bg-[#00b874]";
+  const railText = rail === "stripe" ? "text-[#635bff]" : "text-[#00b874]";
 
   return (
     <div className="flex h-full flex-col">
@@ -136,9 +155,16 @@ function SidebarContent({
           </div>
           <div className="flex items-center justify-between">
             <span className="text-text-muted">Payments</span>
-            <span className="flex items-center gap-1.5 font-medium text-[#00b874]">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#00b874]" />
-              Razorpay
+            <span
+              className={cn("flex items-center gap-1.5 font-medium", railText)}
+            >
+              <span
+                className={cn(
+                  "h-1.5 w-1.5 animate-pulse rounded-full",
+                  railAccent,
+                )}
+              />
+              {railLabel}
             </span>
           </div>
         </div>

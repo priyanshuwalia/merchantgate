@@ -435,16 +435,16 @@ export default function SettingsPage() {
                   className="h-9 w-full px-3 rounded-md bg-white border border-input text-sm text-foreground focus:outline-none focus:border-primary focus:shadow-[0_0_0_3px_rgba(0,102,255,0.1)]"
                 >
                   <option value="razorpay">
-                    Razorpay (UPI, wallets, cards)
+                    Razorpay — UPI, wallets, cards (human checkout)
                   </option>
                   <option value="stripe">
-                    Stripe Card (autonomous agent payment)
+                    Stripe Autonomous — cards, settled by the agent
                   </option>
                 </select>
                 <p className="mt-1 text-[11px] text-text-muted">
                   {paymentProvider === "stripe"
-                    ? "Buyer agents settle server-side with a card token — no human checkout. Simulated offline until STRIPE_SECRET_KEY is set."
-                    : "Buyer agents receive a Razorpay checkout/UPI link to complete."}
+                    ? "Buyer agents settle server-side at /v1/agent/checkout/confirm with a card token — no human checkout step, and the order, budget reservation and inventory commit atomically. Simulated offline until STRIPE_SECRET_KEY is set."
+                    : "Buyer agents receive a Razorpay checkout/UPI link to complete. The order stays payment_pending until a verified payment capture arrives."}
                 </p>
               </div>
 

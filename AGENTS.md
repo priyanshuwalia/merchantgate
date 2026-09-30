@@ -20,6 +20,7 @@ It is a **single Next.js 16 (App Router) application** written in TypeScript, de
 3. **Concurrent spend is atomic.** Rolling 30-day budget reservations are enforced at policy time against committed spend (reservations + completed payments).
 4. **The merchant is the source of truth.** Prices, availability, taxes, and policy are merchant-controlled; buyer-supplied intent mandates are sanitised and bounded before they ever reach the policy engine.
 5. **Fraud prevention at the boundary.** Razorpay webhooks are HMAC-SHA256 verified, **claim-first deduplicated** (DB `ON CONFLICT DO NOTHING` claim + state machine statuses `received`/`processed`/`failed`, with atomic takeover of `failed` events on retry), and the cart snapshot hash is re-checked at settlement (TOCTOU guard). State transitions + inventory decrement + dedupe status commit through the same `runTransaction` batch.
+6. **No silent substitution.** Product selection is fail-closed. A buyer's search text is scored against catalogue titles by the pure matcher in `src/core/catalog-match.ts`; only `exact`/`compatible` verdicts are purchasable. A candidate that matches only as the *modifier* of an accessory head noun — a "Headphone **Stand**" for a "headphones" request — is a complement, not a cheaper option, and is never selectable. When nothing clears the bar the answer is `no match`, never "the cheapest thing in the store".
 
 ---
 
@@ -33,7 +34,7 @@ It is a **single Next.js 16 (App Router) application** written in TypeScript, de
 | Icons | lucide-react, @hugeicons/react |
 | Database | Neon PostgreSQL + Drizzle ORM (1.0 rc) |
 | Orm tooling | drizzle-kit (generate/migrate/studio) |
-| Payments | Razorpay Node SDK (test mode) + simulated UAP |
+| Payments | Razorpay Node SDK (test mode, human checkout) + Stripe (autonomous agent settlement) + simulated UAP |
 | AI | Vercel AI SDK + OpenAI-compatible providers (`@ai-sdk/openai`) |
 | Validation | Zod 4 |
 | Dashboard auth | Session cookie signed with HMAC (password = `MERCHANT_ADMIN_PASSWORD`) |
@@ -129,7 +130,8 @@ src/
 │   ├── sandbox/                      # SimulationRunner + InventoryAgentConsole (tabbed)
 │   └── branding/Logo.tsx             # MerchantGate logo (mark)
 ├── core/                             # PURE merchant core (no Next.js, no DB, no I/O)
-│   └── pricing.ts                    #   deterministic cart pricing (surge/campaign/negotiation)
+│   ├── pricing.ts                    #   deterministic cart pricing (surge/campaign/negotiation)
+│   └── catalog-match.ts              #   deterministic product relevance (accessory/substitution gate)
 ├── lib/
 │   ├── payments/                     # razorpay.ts (client+HMAC) + orchestrator.ts
 │   ├── policy/                       # engine.ts (ALLOW/STEP_UP/DENY) + budget.ts
@@ -138,6 +140,8 @@ src/
 │   ├── simulation/                   # buyer-agent, runner, scenarios
 │   ├── auth/                         # agent-auth, guard, session, rate-limit
 │   ├── ai/                           # llm, persona, provider
+│   ├── payments/                     # razorpay.ts (client+HMAC), stripe.ts, orchestrator.ts,
+│   │                                #   rails.ts (pure rail identification)
 │   ├── audit/logger.ts               # append-only audit + hash chain
 │   ├── broadcast/agentpay-bus.ts     # BroadcastChannel cross-tab events (browser)
 │   ├── crypto/canonical.ts           # canonical JSON + SHA-256 helpers
@@ -147,7 +151,8 @@ src/
 │   ├── schema.ts                     # 12 tables, snake_case
 │   └── seed.ts                       # demo catalogue + config (Nimbus Gear)
 ├── tests/
-│   ├── unit/                         # policy, campaigns, negotiation, upsell, pricing-core, auth
+│   ├── unit/                         # policy, campaigns, negotiation, upsell, pricing-core,
+│   │                                 #   catalog-match, payment-rails, auth
 │   ├── api-test.ts, test-suite.ts, sim-runner-test.ts   # dev/test helpers
 └── (no middleware.ts — auth is per-route)
 ```
@@ -250,7 +255,7 @@ CI (`.github/workflows/ci.yml`): install → `pnpm build` → `pnpm test` (with 
 
 ## Testing (actual)
 
-- **Unit tests** (`src/tests/unit/*.test.ts`, Node test runner): policy engine, campaigns, negotiation, upsell, pricing core, agent auth. 47 cases.
+- **Unit tests** (`src/tests/unit/*.test.ts`, Node test runner): policy engine, campaigns, negotiation, upsell, pricing core, catalogue matching, payment-rail identification, agent auth. 82 cases.
 - **Policy engine contract** is the most important suite — decision semantics (`ALLOW/STEP_UP/DENY`) with `reasonCodes`, budget boundary cases, slippage, merchant allowlists.
 - Manual/integration helpers exist under `src/tests/` (api-test, test-suite, sim-runner) and the **Simulation Sandbox** drives the full flow against real route handlers + real DB.
 
@@ -262,13 +267,14 @@ Addressing these is the roadmap. They are the current state, not the goal.
 
 1. **Single merchant tenant (single seam).** The demo tenant `"mch_nimbus_gear_001"` now exists ONLY in `src/lib/merchant/tenant.ts` (`DEFAULT_MERCHANT_ID`); every route/lib/page imports it through that module, and `src/lib/merchant/context.ts` resolves the acting merchant from it in one read. Multi-tenancy is scaffolded at the schema level (`merchants.api_key_hash`, per-row config) but not yet resolved from a request credential.
 2. **In-memory mutable state in serverless functions.** Negotiation sessions and the surge toggle live in `globalThis` module maps and are snapshot/persisted to `merchants.config` jsonb via `src/lib/merchant/runtime-state.ts`. Works for a single region + light concurrency; not a durable store.
-3. **Fat route handlers.** The pricing/policy/quoting math now lives in a pure `src/core/pricing.ts` (unit-tested), and the checkout hot path has been RT-tuned (single merchant read, single mandate read, JOIN batch reads, one write transaction, batched updates), but checkout/confirm/webhook routes still orchestrate I/O + audit inline rather than behind a service layer.
+3. **Fat route handlers.** The pricing/policy/quoting math now lives in a pure `src/core/pricing.ts`, the relevance/substitution gate in a pure `src/core/catalog-match.ts`, and rail identification in `src/lib/payments/rails.ts` (all unit-tested), and the checkout hot path has been RT-tuned (single merchant read, single mandate read, JOIN batch reads, one write transaction, batched updates), but checkout/confirm/webhook routes still orchestrate I/O + audit inline rather than behind a service layer.
 4. **Framework leakage into `src/lib`.** `agent-auth.ts`, `merchant/guard.ts`, and `rate-limit.ts` import `NextResponse`/`NextRequest`, coupling domain/auth code to Next.js.
-5. **No shared contract package.** Mandate/quote/policy types are declared in `src/lib/policy/engine.ts` and partially re-declared across simulation and test files.
-6. **No `middleware.ts`.** Auth is enforced per-route (works, but not centralized).
-7. **No real observability pipeline.** Errors use `console.error`; audit logs the business truth but there are no structured logs / traces / health endpoints.
-8. **OpenAPI artifact is read-only contract.** The OpenAPI 3.1 spec at `/api/openapi.json` is generated from the Zod wire contracts in `src/lib/api/schemas.ts` (served as an artifact), but it is documented/consumed, not yet wired into validation or client generation.
-9. **Browser + server sharing a module tree.** `src/lib/broadcast/agentpay-bus.ts` uses `window`/`BroadcastChannel` but lives under `src/lib` without `server-only`/`client-only` guards.
+5. **Razorpay-shaped storage.** `payment_actions.razorpay_order_id` / `razorpay_payment_id` carry Stripe PaymentIntent / charge ids too, since a payment action is the single settlement record for both rails. `src/lib/payments/rails.ts` is the one place that decodes the rail; renaming those columns is the real fix.
+6. **No shared contract package.** Mandate/quote/policy types are declared in `src/lib/policy/engine.ts` and partially re-declared across simulation and test files.
+7. **No `middleware.ts`.** Auth is enforced per-route (works, but not centralized).
+8. **No real observability pipeline.** Errors use `console.error`; audit logs the business truth but there are no structured logs / traces / health endpoints.
+9. **OpenAPI artifact is read-only contract.** The OpenAPI 3.1 spec at `/api/openapi.json` is generated from the Zod wire contracts in `src/lib/api/schemas.ts` (served as an artifact), but it is documented/consumed, not yet wired into validation or client generation.
+10. **Browser + server sharing a module tree.** `src/lib/broadcast/agentpay-bus.ts` uses `window`/`BroadcastChannel` but lives under `src/lib` without `server-only`/`client-only` guards.
 
 ---
 

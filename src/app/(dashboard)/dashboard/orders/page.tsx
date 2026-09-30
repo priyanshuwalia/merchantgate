@@ -35,6 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { paymentRailLabel } from "@/lib/payments/rails";
 import { formatMinorUnits } from "@/lib/utils";
 
 interface RazorpayCheckout {
@@ -54,6 +55,9 @@ interface Order {
   amount_minor: number;
   currency: string;
   razorpay_order_id?: string;
+  razorpay_payment_id?: string;
+  /** Both rails share one settlement record; the rail lives here. */
+  provider_metadata?: Record<string, unknown> | null;
   status: string;
   created_at: string;
 }
@@ -209,7 +213,7 @@ export default function OrdersPage() {
     <div className="flex-1 flex flex-col">
       <Header
         title="Orders & Payment Actions"
-        description="View finalized payments, live Razorpay order bindings, audit lineages, and process customer refunds."
+        description="View finalized payments across both rails — autonomous Stripe PaymentIntents and Razorpay test order bindings — plus audit lineages and customer refunds."
       />
 
       <div className="p-6 space-y-6">
@@ -238,7 +242,7 @@ export default function OrdersPage() {
         {/* Orders Table Card */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle>Settled Orders & Razorpay Bindings</CardTitle>
+            <CardTitle>Settled Orders & Provider Bindings</CardTitle>
             <CardDescription>
               Direct linkage between cart mandates and payment transactions
             </CardDescription>
@@ -250,7 +254,7 @@ export default function OrdersPage() {
                   <TableHead>Payment Action ID</TableHead>
                   <TableHead>Cart Mandate</TableHead>
                   <TableHead>Amount</TableHead>
-                  <TableHead>Razorpay Order ID</TableHead>
+                  <TableHead>Provider Reference</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Timestamp</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -298,16 +302,28 @@ export default function OrdersPage() {
                         {formatMinorUnits(ord.amount_minor, ord.currency)}
                       </TableCell>
                       <TableCell className="font-mono">
-                        {ord.razorpay_order_id ? (
-                          <Badge
-                            variant="cyan"
-                            className="font-mono text-[10px]"
-                          >
-                            {ord.razorpay_order_id}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">N/A</span>
-                        )}
+                        {(() => {
+                          const { rail, label, reference } =
+                            paymentRailLabel(ord);
+                          if (!reference) {
+                            return (
+                              <span className="text-muted-foreground">N/A</span>
+                            );
+                          }
+                          return (
+                            <span className="inline-flex flex-col items-start gap-1">
+                              <Badge
+                                variant={rail === "stripe" ? "stripe" : "cyan"}
+                                className="font-mono text-[10px]"
+                              >
+                                {reference}
+                              </Badge>
+                              <span className="text-[10px] text-muted-foreground">
+                                {label}
+                              </span>
+                            </span>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         {ord.status === "completed" ? (
@@ -336,7 +352,8 @@ export default function OrdersPage() {
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
                           {ord.status === "pending_payment" &&
-                            ord.razorpay_order_id && (
+                            ord.razorpay_order_id &&
+                            paymentRailLabel(ord).rail === "razorpay" && (
                               <Button
                                 size="sm"
                                 onClick={() => handlePayWithRazorpay(ord)}

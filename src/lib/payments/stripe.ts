@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import Stripe from "stripe";
+import { isStripePaymentAction as isStripeRail } from "@/lib/payments/rails";
 
 /**
  * Stripe payment provider.
@@ -187,10 +188,5 @@ export function isStripePaymentAction(action: {
   razorpay_order_id: string | null;
   provider_metadata: unknown;
 }): boolean {
-  const meta =
-    (action.provider_metadata as Record<string, unknown> | null) || {};
-  return (
-    meta.provider === "stripe" ||
-    Boolean(action.razorpay_order_id?.startsWith("pi_"))
-  );
+  return isStripeRail(action);
 }

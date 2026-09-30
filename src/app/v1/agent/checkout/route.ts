@@ -29,7 +29,10 @@ import {
 } from "@/lib/merchant/campaigns";
 import { getMerchantContext } from "@/lib/merchant/context";
 import { aiSalesPausedResponse } from "@/lib/merchant/guard";
-import { getAgreedNegotiationForCheckout } from "@/lib/merchant/negotiation";
+import {
+  getAgreedNegotiationForCheckout,
+  bindCartToNegotiation,
+} from "@/lib/merchant/negotiation";
 import { SURGE_PRICING_REASON } from "@/lib/merchant/surge";
 import {
   getUpsellRules,
@@ -102,6 +105,67 @@ export async function POST(request: Request) {
     // Resolve an agent-to-agent negotiation session (if the buyer negotiated terms)
     const negotiationSession =
       getAgreedNegotiationForCheckout(negotiationSessionId);
+
+    // A session id that resolves to nothing is not silently ignored: the buyer
+    // believes it is quoting under agreed terms, so the mismatch is surfaced.
+    if (negotiationSessionId && !negotiationSession) {
+      await logAuditEvent({
+        traceId,
+        actorType: "agent",
+        actorId: auth.agentId || "buyer_agent",
+        eventType: "negotiation_binding_rejected",
+        explanation: `Checkout quoted against negotiation session '${negotiationSessionId}', which is not an AGREED session (missing, expired, rejected, or still an open counter-offer). Quote refused so no un-agreed concession can reach a cart.`,
+        metadata: {
+          negotiationSessionId,
+          reasonCode: "NEGOTIATION_NOT_AGREED",
+          agentAuthMode: auth.mode,
+        },
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "NEGOTIATION_NOT_AGREED",
+          reasonCodes: ["NEGOTIATION_NOT_AGREED"],
+          message:
+            "The referenced negotiation session is not an agreed session. Complete the acceptance round, or re-quote without a session id.",
+          negotiationSessionId,
+        },
+        { status: 409 },
+      );
+    }
+
+    // The negotiated concession is a promise about a specific basket: the cart
+    // must be the negotiated cart, in both directions.
+    if (negotiationSession) {
+      const binding = bindCartToNegotiation(negotiationSession, requestedItems);
+      if (!binding.ok) {
+        await logAuditEvent({
+          traceId,
+          actorType: "agent",
+          actorId: auth.agentId || "buyer_agent",
+          eventType: "negotiation_binding_rejected",
+          explanation: `SECURITY: checkout cart does not match agreed negotiation ${negotiationSession.id} — ${binding.detail}`,
+          metadata: {
+            negotiationSessionId: negotiationSession.id,
+            reasonCode: binding.code,
+            detail: binding.detail,
+            negotiatedItems: negotiationSession.items,
+            requestedItems,
+          },
+        });
+        return NextResponse.json(
+          {
+            success: false,
+            error: binding.code,
+            reasonCodes: [binding.code],
+            message: binding.detail,
+            negotiationSessionId: negotiationSession.id,
+          },
+          { status: 409 },
+        );
+      }
+    }
+
     const negotiatedTerms = new Map<
       string,
       { discountBps: number; quantity: number }

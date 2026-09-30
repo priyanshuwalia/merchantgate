@@ -15,6 +15,13 @@ import type { Campaign } from "@/lib/merchant/campaigns";
 
 const noopCampaigns: Campaign[] = [];
 
+/**
+ * Pinned clock for campaign-liveness assertions. The campaign fixtures below
+ * carry real calendar windows; without an injected `now` the suite would start
+ * failing the day those windows pass in wall-clock time.
+ */
+const CAMPAIGN_CLOCK = new Date("2026-09-15T00:00:00Z");
+
 function product(overrides: Partial<PriceableProduct> = {}): PriceableProduct {
   return {
     id: "prod_1",
@@ -111,6 +118,7 @@ describe("pricing core", () => {
       [{ variantId: "var_mouse_m1", quantity: 1 }],
       ctx({
         campaigns: [campaign],
+        now: CAMPAIGN_CLOCK,
       }),
     );
     const line = cart.lines[0];
@@ -182,6 +190,36 @@ describe("pricing core", () => {
       }),
     );
     assert.notEqual(cart.lines[0].discountBps, 1100);
+  });
+
+  test("a buyer cannot inflate the discovery baseline above list price", () => {
+    // Slippage is measured against the discovery price the buyer presents, so
+    // an inflated value would hide a surge re-price from the policy gate.
+    const cart = priceCart(
+      [
+        {
+          variantId: "var_headphones_x1",
+          quantity: 1,
+          discoveryPriceMinor: 9_999_999,
+        },
+      ],
+      ctx({ surgeActive: true }),
+    );
+    assert.equal(cart.lines[0].discoveryPriceMinor, 899900);
+  });
+
+  test("a stale-cheaper discovery price is honoured (fails toward the gate)", () => {
+    const cart = priceCart(
+      [
+        {
+          variantId: "var_headphones_x1",
+          quantity: 1,
+          discoveryPriceMinor: 800000,
+        },
+      ],
+      ctx(),
+    );
+    assert.equal(cart.lines[0].discoveryPriceMinor, 800000);
   });
 
   test("missing variant, bad quantity and low stock all fail validateCart", () => {
