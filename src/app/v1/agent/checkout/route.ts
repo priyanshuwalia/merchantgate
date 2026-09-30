@@ -30,8 +30,8 @@ import {
 import { getMerchantContext } from "@/lib/merchant/context";
 import { aiSalesPausedResponse } from "@/lib/merchant/guard";
 import {
-  getAgreedNegotiationForCheckout,
   bindCartToNegotiation,
+  getAgreedNegotiationForCheckout,
 } from "@/lib/merchant/negotiation";
 import { SURGE_PRICING_REASON } from "@/lib/merchant/surge";
 import {

@@ -8,6 +8,8 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  ExternalLink,
+  FlaskConical,
   Handshake,
   Key,
   ListTree,
@@ -243,6 +245,16 @@ export function SimulationRunner() {
   const [stripePaymentToken, setStripePaymentToken] = useState("pm_card_visa");
   const [isPaying, setIsPaying] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  // Provenance of the last autonomous Stripe settlement. The confirm endpoint
+  // reports whether a real PaymentIntent was created; without this the operator
+  // sees "Settled autonomously on Stripe" for a `pi_sim_…` that Stripe never
+  // saw, which is indistinguishable from a real charge in the UI.
+  const [stripeSettlement, setStripeSettlement] = useState<{
+    isMock: boolean;
+    paymentIntentId: string;
+    chargeId?: string;
+    dashboardUrl: string | null;
+  } | null>(null);
 
   // Upsell decision flow: the buyer agent offers a combo deal in the chat and
   // the user decides whether to add it. The Razorpay modal only opens AFTER
@@ -752,10 +764,18 @@ export function SimulationRunner() {
         return;
       }
       setPaymentCheckout(null);
+      setStripeSettlement({
+        isMock: data.isMock === true,
+        paymentIntentId: data.paymentIntentId,
+        chargeId: data.chargeId,
+        dashboardUrl: data.stripeDashboardUrl ?? null,
+      });
       pushToast({
         title:
           data.status === "completed"
-            ? "Settled autonomously on Stripe"
+            ? data.isMock === true
+              ? "Simulated (no Stripe keys) — nothing charged"
+              : "Settled autonomously on Stripe"
             : "Stripe settlement processing",
         decision: "ALLOW",
         quantity: paymentCheckout.quantity,
@@ -2171,6 +2191,67 @@ export function SimulationRunner() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Settlement receipt for a completed autonomous Stripe charge. Stays on
+          screen after the payment card is dismissed so the operator can confirm,
+          at a glance, whether Stripe actually holds the money — and reconcile. */}
+      {stripeSettlement && (
+        <div className="fixed bottom-6 left-1/2 z-[100] w-[380px] -translate-x-1/2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
+          <div
+            className={`flex items-center justify-between px-4 py-2.5 text-xs font-semibold ${
+              stripeSettlement.isMock
+                ? "bg-amber-50 text-amber-700"
+                : "bg-emerald-50 text-emerald-700"
+            }`}
+          >
+            <span className="inline-flex items-center gap-1.5">
+              {stripeSettlement.isMock ? (
+                <FlaskConical className="h-3.5 w-3.5" />
+              ) : (
+                <CheckCircle2 className="h-3.5 w-3.5" />
+              )}
+              {stripeSettlement.isMock
+                ? "Simulated — not charged"
+                : "Charged at Stripe"}
+            </span>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              onClick={() => setStripeSettlement(null)}
+              className="opacity-60 hover:opacity-100"
+            >
+              <XCircle className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div className="space-y-1.5 px-4 py-3 text-[11px]">
+            <p
+              className={
+                stripeSettlement.isMock
+                  ? "text-amber-700"
+                  : "text-text-secondary"
+              }
+            >
+              {stripeSettlement.isMock
+                ? "The server had no usable STRIPE_SECRET_KEY, so it minted a local pi_sim_… reference. No Stripe object was created and nothing will appear in your Stripe dashboard."
+                : "A real Stripe PaymentIntent was created and confirmed. It is visible in your Stripe dashboard under test mode."}
+            </p>
+            <p className="break-all font-mono text-text-muted">
+              {stripeSettlement.paymentIntentId}
+            </p>
+            {stripeSettlement.dashboardUrl && (
+              <a
+                href={stripeSettlement.dashboardUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+              >
+                <ExternalLink className="h-3 w-3" />
+                View in Stripe dashboard
+              </a>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Live settlement card for an approved quote — bottom-CENTER so it never
           collides with the top-right toast stack. Both rails settle the SAME

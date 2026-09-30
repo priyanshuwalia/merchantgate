@@ -23,6 +23,7 @@ import {
 } from "@/lib/payments/orchestrator";
 import {
   confirmStripePaymentIntent,
+  isStripeLiveMode,
   type StripePaymentResult,
 } from "@/lib/payments/stripe";
 import { generateId, generateTraceId } from "@/lib/utils";
@@ -458,6 +459,10 @@ export async function POST(request: NextRequest) {
       const items =
         (cart.items as Array<{ variantId: string; quantity: number }>) || [];
       const stripePaymentId = intent.chargeId || intent.id;
+      // Provenance of THIS settlement: whether it reached Stripe, and which
+      // dashboard it lives under. Persisted so the Orders ledger can label a
+      // `pi_sim_…` row as simulated and deep-link a real `pi_…` row correctly.
+      const liveMode = !intent.isMock && isStripeLiveMode();
       const pa = paymentAction ?? {
         id: generateId("pact"),
         cart_mandate_id: cartMandateId,
@@ -506,6 +511,7 @@ export async function POST(request: NextRequest) {
                     paymentIntentId: intent.id,
                     chargeId: stripePaymentId,
                     isMock: intent.isMock,
+                    liveMode,
                   },
                   updated_at: new Date(),
                 })
@@ -526,6 +532,7 @@ export async function POST(request: NextRequest) {
                   paymentIntentId: intent.id,
                   chargeId: stripePaymentId,
                   isMock: intent.isMock,
+                  liveMode,
                 },
               }),
         ),
@@ -580,6 +587,7 @@ export async function POST(request: NextRequest) {
           agentAuthMode: auth.mode,
           rateLimitRemaining: auth.rateLimitInfo.remaining,
           isMock: intent.isMock,
+          liveMode,
         },
       });
 
@@ -593,6 +601,14 @@ export async function POST(request: NextRequest) {
         razorpayPaymentId: stripePaymentId,
         amountMinor: cart.total_minor,
         currency: cart.currency,
+        // Provenance, so a buyer agent (and the dashboard) never has to guess
+        // whether this settlement exists at Stripe or was faked by the offline
+        // fallback. `isMock: true` means NO Stripe object was created.
+        isMock: intent.isMock,
+        liveMode,
+        stripeDashboardUrl: intent.isMock
+          ? null
+          : `https://dashboard.stripe.com/${liveMode ? "" : "test/"}payments/${intent.id}`,
         completedAt: new Date().toISOString(),
         expiresAt: cart.quote_expires_at.toISOString(),
         agentAuth: {

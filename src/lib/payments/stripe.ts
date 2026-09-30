@@ -35,6 +35,17 @@ export function getStripeClient(): Stripe | null {
   return null;
 }
 
+/**
+ * Which Stripe dashboard the settlement will appear under. A test-mode intent
+ * (`sk_test_…`) only exists under `dashboard.stripe.com/test/…`, so the mode has
+ * to be captured server-side at settlement time — the UI cannot re-derive it,
+ * and sending the merchant to the live path yields a 404 that reads as "the
+ * payment is missing" rather than "wrong mode".
+ */
+export function isStripeLiveMode(): boolean {
+  return (process.env.STRIPE_SECRET_KEY || "").startsWith("sk_live_");
+}
+
 export type StripePaymentResult = {
   id: string;
   status: string; // succeeded | requires_action | requires_payment_method | processing | ...

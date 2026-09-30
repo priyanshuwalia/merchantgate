@@ -4,10 +4,12 @@ import {
   CheckCircle2,
   Clock,
   CreditCard,
+  ExternalLink,
+  FlaskConical,
   RefreshCw,
   RotateCcw,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Header } from "@/components/dashboard/Header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -209,6 +211,26 @@ export default function OrdersPage() {
     }
   };
 
+  // Settlement provenance: how much of this ledger actually reached a provider
+  // vs was minted by the offline fallback. Surfacing this is the difference
+  // between "my Stripe dashboard is empty" being a mystery and being a fact.
+  const provenance = useMemo(() => {
+    let simulated = 0;
+    let realProvider = 0;
+    let notAttempted = 0;
+    for (const ord of orders) {
+      const { reference, simulated: isSim } = paymentRailLabel(ord);
+      if (!reference) {
+        notAttempted += 1;
+      } else if (isSim) {
+        simulated += 1;
+      } else {
+        realProvider += 1;
+      }
+    }
+    return { simulated, realProvider, notAttempted };
+  }, [orders]);
+
   return (
     <div className="flex-1 flex flex-col">
       <Header
@@ -226,6 +248,31 @@ export default function OrdersPage() {
                 {orders.length}
               </Badge>
             </span>
+            <span className="text-xs text-muted-foreground">·</span>
+            <Badge
+              variant="outline"
+              className="gap-1 font-mono text-[10px]"
+              title="Settlements that reached the provider and are visible in Stripe"
+            >
+              {provenance.realProvider} at provider
+            </Badge>
+            <Badge
+              variant="outline"
+              className="gap-1 border-amber-500/50 bg-amber-500/10 font-mono text-[10px] text-amber-600 dark:text-amber-400"
+              title="Offline fallback — no Stripe or Razorpay object was created"
+            >
+              <FlaskConical className="h-2.5 w-2.5" />
+              {provenance.simulated} simulated
+            </Badge>
+            {provenance.notAttempted > 0 && (
+              <Badge
+                variant="outline"
+                className="gap-1 font-mono text-[10px]"
+                title="Quoted but never presented to a provider"
+              >
+                {provenance.notAttempted} not attempted
+              </Badge>
+            )}
           </div>
 
           <Button
@@ -303,25 +350,68 @@ export default function OrdersPage() {
                       </TableCell>
                       <TableCell className="font-mono">
                         {(() => {
-                          const { rail, label, reference } =
-                            paymentRailLabel(ord);
+                          const {
+                            rail,
+                            label,
+                            reference,
+                            simulated,
+                            dashboardUrl,
+                          } = paymentRailLabel(ord);
                           if (!reference) {
                             return (
-                              <span className="text-muted-foreground">N/A</span>
+                              <span className="text-muted-foreground">
+                                Not attempted
+                              </span>
                             );
                           }
-                          return (
+                          // A real provider reference deep-links to the Stripe
+                          // dashboard so the merchant can reconcile the two
+                          // ledgers; a simulated id deliberately has no link,
+                          // because no such object exists there.
+                          const body = (
                             <span className="inline-flex flex-col items-start gap-1">
-                              <Badge
-                                variant={rail === "stripe" ? "stripe" : "cyan"}
-                                className="font-mono text-[10px]"
-                              >
-                                {reference}
-                              </Badge>
+                              <span className="inline-flex items-center gap-1.5">
+                                <Badge
+                                  variant={
+                                    rail === "stripe" ? "stripe" : "cyan"
+                                  }
+                                  className="font-mono text-[10px]"
+                                >
+                                  {reference}
+                                </Badge>
+                                {simulated && (
+                                  <Badge
+                                    variant="outline"
+                                    className="gap-1 border-amber-500/50 bg-amber-500/10 text-[10px] text-amber-600 dark:text-amber-400"
+                                  >
+                                    <FlaskConical className="h-2.5 w-2.5" />
+                                    Simulated
+                                  </Badge>
+                                )}
+                                {dashboardUrl && (
+                                  <ExternalLink
+                                    className="h-3 w-3 text-muted-foreground"
+                                    aria-hidden
+                                  />
+                                )}
+                              </span>
                               <span className="text-[10px] text-muted-foreground">
                                 {label}
                               </span>
                             </span>
+                          );
+                          return dashboardUrl ? (
+                            <a
+                              href={dashboardUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="rounded transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              title={`Open ${reference} in the Stripe dashboard`}
+                            >
+                              {body}
+                            </a>
+                          ) : (
+                            body
                           );
                         })()}
                       </TableCell>
